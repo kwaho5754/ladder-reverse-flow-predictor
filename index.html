@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>사다리 예측 결과 (반전 흐름)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f2f2;
+      padding: 20px;
+    }
+    .box {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 30px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    h2 {
+      margin-top: 0;
+    }
+    li {
+      margin-bottom: 10px;
+    }
+    .detail {
+      font-size: 0.9em;
+      color: gray;
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2 id="round">예측 회차:</h2>
+    <ul id="result-list"></ul>
+  </div>
+  <div class="box">
+    <h2>흐름 해석</h2>
+    <pre id="flow"></pre>
+  </div>
+
+  <script>
+    fetch("/predict")
+      .then((res) => res.json())
+      .then((data) => {
+        document.getElementById("round").textContent = `예측 회차: ${data['예측 회차']}`;
+
+        const ul = document.getElementById("result-list");
+        ul.innerHTML = "";
+
+        data.Top5.forEach((item) => {
+          const li = document.createElement("li");
+          li.innerHTML = `<strong>${item['순위']}</strong>: ${item['예측값']} <span style="color:blue">(점수: ${item['점수']})</span>`;
+
+          const detailDiv = document.createElement("div");
+          detailDiv.className = "detail";
+          const details = Object.entries(item['상세'])
+            .map(([k, v]) => `- ${k}: ${v}회`)
+            .join("<br>");
+          detailDiv.innerHTML = details;
+          li.appendChild(detailDiv);
+
+          ul.appendChild(li);
+        });
+
+        document.getElementById("flow").textContent = JSON.stringify(data['흐름 해석'], null, 2);
+      })
+      .catch(() => {
+        document.getElementById("result-list").innerHTML = "<li>서버 오류</li>";
+      });
+  </script>
+</body>
+</html>
