@@ -1,6 +1,6 @@
 # main.py (흐름 반전 기반 예측 시스템)
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_file
 from flask_cors import CORS
 import requests
 from collections import defaultdict, Counter
@@ -75,16 +75,14 @@ def predict_route():
     flow = analyze_flow(data)
     base_scores = predict(data)
 
-    # 흐름 반대 보정 적용
     latest = flow['줄수'][-1]
     reversed_bias = []
     for k in base_scores:
         _, c, _ = parse_block(k)
         if int(c) != latest:
-            base_scores[k]['score'] += 1.5  # 반전된 줄수에 보정
+            base_scores[k]['score'] += 1.5
             reversed_bias.append(k)
 
-    # 불안정도 보정
     for k in base_scores:
         base_scores[k]['score'] += flow['불안정도'] * 1.5
 
@@ -103,6 +101,11 @@ def predict_route():
         "Top5": output,
         "흐름 해석": flow
     })
+
+
+@app.route("/")
+def home():
+    return send_file("index.html")
 
 
 if __name__ == "__main__":
