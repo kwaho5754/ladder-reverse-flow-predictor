@@ -31,7 +31,7 @@ def predict():
         raw = requests.get(URL).json()
         data = raw[-288:]
         mode = request.args.get("mode", "3block")
-        round_num = int(raw[-1]['date_round']) + 1
+        round_num = int(raw[0]['date_round']) + 1
 
         if mode.endswith("block"):
             size = int(mode[0])
