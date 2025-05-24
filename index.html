@@ -1,3 +1,5 @@
+<!-- ⬇️ index.html — 흐름 해석 JSON 박스만 제거된 버전 -->
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -34,12 +36,6 @@
       font-size: 0.9em;
       color: #555;
       margin-top: 4px;
-    }
-    pre {
-      background: #f4f4f4;
-      padding: 10px;
-      border-radius: 6px;
-      overflow-x: auto;
     }
   </style>
 </head>
@@ -88,13 +84,6 @@
             ul.appendChild(li);
           });
           section.appendChild(ul);
-
-          if (data["흐름해석"] || data["흐름 해석"]) {
-            const pre = document.createElement("pre");
-            const flow = data["흐름해석"] || data["흐름 해석"];
-            pre.textContent = JSON.stringify(flow, null, 2);
-            section.appendChild(pre);
-          }
 
           document.getElementById("results").appendChild(section);
         })
