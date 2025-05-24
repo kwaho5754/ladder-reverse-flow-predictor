@@ -1,4 +1,4 @@
-# ⬇️ main.py — flow_mix 포함, 상단값만 예측에 사용 (정방향 블럭 + 점수제 복원)
+# ⬇️ main.py — 3~6block 원본 + 대칭(_mirror), flow_mix 유지, 상단값만 예측 적용
 
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
@@ -21,14 +21,12 @@ def parse_block(s): return s[0], s[1], s[2]
 def flip_start(s): return '우' if s == '좌' else '좌'
 def flip_parity(p): return '짝' if p == '홀' else '홀'
 
-def generate_variants(block):
-    variants = {"원본": block, "대칭시작": [], "대칭홀짝": [], "대칭둘다": []}
+def make_mirror(block):
+    mirrored = []
     for b in block:
         s, c, o = parse_block(b)
-        variants["대칭시작"].append(f"{flip_start(s)}{c}{o}")
-        variants["대칭홀짝"].append(f"{s}{c}{flip_parity(o)}")
-        variants["대칭둘다"].append(f"{flip_start(s)}{c}{flip_parity(o)}")
-    return variants
+        mirrored.append(f"{flip_start(s)}{c}{flip_parity(o)}")
+    return mirrored
 
 @app.route("/")
 def home():
@@ -42,9 +40,12 @@ def predict():
         mode = request.args.get("mode", "3block")
         round_num = int(raw[0]['date_round']) + 1
 
-        if mode.endswith("block"):
+        if mode.endswith("block") or mode.endswith("mirror"):
             size = int(mode[0])
             recent_block = [convert(d) for d in data[-size:]]
+            if mode.endswith("mirror"):
+                recent_block = make_mirror(recent_block)
+
             all_blocks = [convert(d) for d in data]
             candidates = []
             for i in range(len(all_blocks) - size + 1):
@@ -52,10 +53,9 @@ def predict():
                 if block == recent_block:
                     if i - 1 >= 0:
                         candidates.append(convert(data[i - 1]))
+
             freq = Counter(candidates)
-            top3 = [
-                {"값": val, "횟수": cnt} for val, cnt in freq.most_common(3)
-            ]
+            top3 = [{"값": val, "횟수": cnt} for val, cnt in freq.most_common(3)]
             while len(top3) < 3:
                 top3.append({"값": "❌ 없음", "횟수": 0})
             return jsonify({"예측회차": round_num, "Top3": top3})
@@ -64,15 +64,19 @@ def predict():
             scores = defaultdict(lambda: {"score": 0, "detail": defaultdict(int)})
             for size in range(3, 7):
                 recent_block = [convert(d) for d in data[-size:]]
-                variants = generate_variants(recent_block)
                 all_blocks = [convert(d) for d in data]
+                variants = {
+                    "대칭시작": [f"{flip_start(s)}{c}{o}" for s, c, o in map(parse_block, recent_block)],
+                    "대칭홀짝": [f"{s}{c}{flip_parity(o)}" for s, c, o in map(parse_block, recent_block)],
+                    "대칭둘다": [f"{flip_start(s)}{c}{flip_parity(o)}" for s, c, o in map(parse_block, recent_block)]
+                }
                 for i in range(len(all_blocks) - size + 1):
                     past_block = all_blocks[i:i+size]
-                    for key, variant in variants.items():
-                        if past_block == variant:
+                    for key, pattern in variants.items():
+                        if past_block == pattern:
                             if i - 1 >= 0:
-                                target = convert(data[i - 1])  # ✅ 상단값만 적용
-                                weight = {"원본": 3, "대칭시작": 2, "대칭홀짝": 2, "대칭둘다": 1}[key]
+                                target = convert(data[i - 1])
+                                weight = {"대칭시작": 2, "대칭홀짝": 2, "대칭둘다": 1}[key]
                                 scores[target]["score"] += weight
                                 scores[target]["detail"][key] += 1
 

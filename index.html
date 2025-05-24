@@ -1,26 +1,35 @@
-<!-- ⬇️ index.html — 흐름 반전 제거, flow_mix 복원에 맞게 전체 구조 수정 -->
+<!-- ⬇️ index.html — 3~6줄 블럭 원본/대칭 예측 결과를 가로로 한 줄씩 비교 출력 -->
 
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>사다리 예측 통합 결과</title>
+  <title>사다리 예측 비교 결과</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       background: #f9f9f9;
       padding: 20px;
     }
+    h1 {
+      margin-bottom: 30px;
+    }
+    .row {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
     .section {
+      flex: 1;
       background: white;
       border-radius: 10px;
       padding: 20px;
-      margin-bottom: 30px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
     h2 {
       margin-top: 0;
+      font-size: 1.1em;
     }
     ul {
       padding-left: 20px;
@@ -40,59 +49,86 @@
   </style>
 </head>
 <body>
-  <h1>사다리 예측 통합 결과</h1>
+  <h1>사다리 예측 비교 결과</h1>
 
   <div id="results"></div>
 
   <script>
-    const modes = ["3block", "4block", "5block", "6block", "flow_mix"];
+    const blockPairs = [
+      ["3block", "3block_mirror"],
+      ["4block", "4block_mirror"],
+      ["5block", "5block_mirror"],
+      ["6block", "6block_mirror"]
+    ];
+
     const modeTitles = {
-      "3block": "3줄 블럭 예측",
-      "4block": "4줄 블럭 예측",
-      "5block": "5줄 블럭 예측",
-      "6block": "6줄 블럭 예측",
-      "flow_mix": "흐름 + 블럭 + 대칭 통합 점수제"
+      "3block": "3줄 원본", "3block_mirror": "3줄 대칭",
+      "4block": "4줄 원본", "4block_mirror": "4줄 대칭",
+      "5block": "5줄 원본", "5block_mirror": "5줄 대칭",
+      "6block": "6줄 원본", "6block_mirror": "6줄 대칭",
+      "flow_mix": "대칭 점수제 (3~6줄 종합)"
     };
 
-    modes.forEach(mode => {
-      fetch(`/predict?mode=${mode}`)
-        .then(res => res.json())
-        .then(data => {
-          const section = document.createElement("div");
-          section.className = "section";
-          const title = document.createElement("h2");
-          title.textContent = `${modeTitles[mode]} — 예측 회차: ${data["예측회차"] || data["예측 회차"]}`;
-          section.appendChild(title);
+    function createSection(mode, data) {
+      const section = document.createElement("div");
+      section.className = "section";
 
-          const ul = document.createElement("ul");
-          const resultList = data.Top3 || data.Top5 || [];
-          resultList.forEach((item, idx) => {
-            const li = document.createElement("li");
-            const label = item["값"] || item["예측값"];
-            const score = item["횟수"] !== undefined ? `${item["횟수"]}회` : `점수: ${item["점수"]}`;
-            li.innerHTML = `<span class='score'>${idx + 1}위: ${label} (${score})</span>`;
+      const title = document.createElement("h2");
+      title.textContent = `${modeTitles[mode]} — 예측 회차: ${data["예측회차"]}`;
+      section.appendChild(title);
 
-            const details = item["근거"] || item["상세"] || {};
-            if (Object.keys(details).length > 0) {
-              const detailDiv = document.createElement("div");
-              detailDiv.className = "detail";
-              detailDiv.innerHTML = Object.entries(details)
-                .map(([k, v]) => `- ${k}: ${v}회`).join("<br>");
-              li.appendChild(detailDiv);
-            }
-            ul.appendChild(li);
-          });
-          section.appendChild(ul);
+      const ul = document.createElement("ul");
+      const resultList = data.Top3 || data.Top5 || [];
 
-          document.getElementById("results").appendChild(section);
-        })
-        .catch(() => {
-          const section = document.createElement("div");
-          section.className = "section";
-          section.innerHTML = `<h2>${modeTitles[mode]}</h2><p>❌ 서버 오류</p>`;
-          document.getElementById("results").appendChild(section);
-        });
-    });
+      resultList.forEach((item, idx) => {
+        const li = document.createElement("li");
+        const label = item["값"] || item["예측값"];
+        const score = item["횟수"] !== undefined ? `${item["횟수"]}회` : `점수: ${item["점수"]}`;
+        li.innerHTML = `<span class='score'>${idx + 1}위: ${label} (${score})</span>`;
+
+        const details = item["근거"] || item["상세"] || {};
+        if (Object.keys(details).length > 0) {
+          const detailDiv = document.createElement("div");
+          detailDiv.className = "detail";
+          detailDiv.innerHTML = Object.entries(details)
+            .map(([k, v]) => `- ${k}: ${v}회`).join("<br>");
+          li.appendChild(detailDiv);
+        }
+
+        ul.appendChild(li);
+      });
+
+      section.appendChild(ul);
+      return section;
+    }
+
+    async function loadBlockPair(leftMode, rightMode) {
+      const leftPromise = fetch(`/predict?mode=${leftMode}`).then(res => res.json());
+      const rightPromise = fetch(`/predict?mode=${rightMode}`).then(res => res.json());
+
+      const [leftData, rightData] = await Promise.all([leftPromise, rightPromise]);
+
+      const row = document.createElement("div");
+      row.className = "row";
+      row.appendChild(createSection(leftMode, leftData));
+      row.appendChild(createSection(rightMode, rightData));
+
+      document.getElementById("results").appendChild(row);
+    }
+
+    // Load block comparisons
+    blockPairs.forEach(([left, right]) => loadBlockPair(left, right));
+
+    // Load flow_mix separately
+    fetch("/predict?mode=flow_mix")
+      .then(res => res.json())
+      .then(data => {
+        const row = document.createElement("div");
+        row.className = "row";
+        const section = createSection("flow_mix", data);
+        row.appendChild(section);
+        document.getElementById("results").appendChild(row);
+      });
   </script>
 </body>
 </html>
