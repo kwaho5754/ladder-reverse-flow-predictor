@@ -3,71 +3,108 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>사다리 예측 결과 (반전 흐름)</title>
+  <title>사다리 예측 통합 결과</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f2f2f2;
+      background: #f9f9f9;
       padding: 20px;
     }
-    .box {
+    .section {
       background: white;
       border-radius: 10px;
       padding: 20px;
       margin-bottom: 30px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
     h2 {
       margin-top: 0;
     }
+    ul {
+      padding-left: 20px;
+    }
     li {
       margin-bottom: 10px;
     }
+    .score {
+      font-weight: bold;
+      color: #0055aa;
+    }
     .detail {
       font-size: 0.9em;
-      color: gray;
+      color: #555;
+      margin-top: 4px;
+    }
+    pre {
+      background: #f4f4f4;
+      padding: 10px;
+      border-radius: 6px;
+      overflow-x: auto;
     }
   </style>
 </head>
 <body>
-  <div class="box">
-    <h2 id="round">예측 회차:</h2>
-    <ul id="result-list"></ul>
-  </div>
-  <div class="box">
-    <h2>흐름 해석</h2>
-    <pre id="flow"></pre>
-  </div>
+  <h1>사다리 예측 통합 결과</h1>
+
+  <div id="results"></div>
 
   <script>
-    fetch("/predict")
-      .then((res) => res.json())
-      .then((data) => {
-        document.getElementById("round").textContent = `예측 회차: ${data['예측 회차']}`;
+    const modes = ["3block", "4block", "5block", "6block", "flow_mix", "reverse_only"];
+    const modeTitles = {
+      "3block": "3줄 블럭 예측",
+      "4block": "4줄 블럭 예측",
+      "5block": "5줄 블럭 예측",
+      "6block": "6줄 블럭 예측",
+      "flow_mix": "흐름 + 블럭 + 대칭 통합 예측",
+      "reverse_only": "흐름 반전 기반 예측"
+    };
 
-        const ul = document.getElementById("result-list");
-        ul.innerHTML = "";
+    modes.forEach(mode => {
+      fetch(`/predict?mode=${mode}`)
+        .then(res => res.json())
+        .then(data => {
+          const section = document.createElement("div");
+          section.className = "section";
+          const title = document.createElement("h2");
+          title.textContent = `${modeTitles[mode]} — 예측 회차: ${data["예측회차"] || data["예측 회차"]}`;
+          section.appendChild(title);
 
-        data.Top5.forEach((item) => {
-          const li = document.createElement("li");
-          li.innerHTML = `<strong>${item['순위']}</strong>: ${item['예측값']} <span style="color:blue">(점수: ${item['점수']})</span>`;
+          const ul = document.createElement("ul");
+          const resultList = data.Top3 || data.Top5 || [];
+          resultList.forEach((item, idx) => {
+            const li = document.createElement("li");
+            const label = item["값"] || item["예측값"];
+            const score = item["횟수"] !== undefined ? `${item["횟수"]}회` : `점수: ${item["점수"]}`;
+            li.innerHTML = `<span class='score'>${idx + 1}위: ${label} (${score})</span>`;
 
-          const detailDiv = document.createElement("div");
-          detailDiv.className = "detail";
-          const details = Object.entries(item['상세'])
-            .map(([k, v]) => `- ${k}: ${v}회`)
-            .join("<br>");
-          detailDiv.innerHTML = details;
-          li.appendChild(detailDiv);
+            const details = item["근거"] || item["상세"] || {};
+            if (Object.keys(details).length > 0) {
+              const detailDiv = document.createElement("div");
+              detailDiv.className = "detail";
+              detailDiv.innerHTML = Object.entries(details)
+                .map(([k, v]) => `- ${k}: ${v}회`).join("<br>");
+              li.appendChild(detailDiv);
+            }
+            ul.appendChild(li);
+          });
+          section.appendChild(ul);
 
-          ul.appendChild(li);
+          if (data["흐름해석"] || data["흐름 해석"]) {
+            const pre = document.createElement("pre");
+            const flow = data["흐름해석"] || data["흐름 해석"];
+            pre.textContent = JSON.stringify(flow, null, 2);
+            section.appendChild(pre);
+          }
+
+          document.getElementById("results").appendChild(section);
+        })
+        .catch(() => {
+          const section = document.createElement("div");
+          section.className = "section";
+          section.innerHTML = `<h2>${modeTitles[mode]}</h2><p>❌ 서버 오류</p>`;
+          document.getElementById("results").appendChild(section);
         });
-
-        document.getElementById("flow").textContent = JSON.stringify(data['흐름 해석'], null, 2);
-      })
-      .catch(() => {
-        document.getElementById("result-list").innerHTML = "<li>서버 오류</li>";
-      });
+    });
   </script>
 </body>
 </html>
