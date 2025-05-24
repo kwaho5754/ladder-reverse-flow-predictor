@@ -1,4 +1,4 @@
-<!-- ⬇️ index.html — 흐름 해석 JSON 박스만 제거된 버전 -->
+<!-- ⬇️ index.html — 흐름 반전 제거, flow_mix 복원에 맞게 전체 구조 수정 -->
 
 <!DOCTYPE html>
 <html lang="ko">
@@ -45,14 +45,13 @@
   <div id="results"></div>
 
   <script>
-    const modes = ["3block", "4block", "5block", "6block", "flow_mix", "reverse_only"];
+    const modes = ["3block", "4block", "5block", "6block", "flow_mix"];
     const modeTitles = {
       "3block": "3줄 블럭 예측",
       "4block": "4줄 블럭 예측",
       "5block": "5줄 블럭 예측",
       "6block": "6줄 블럭 예측",
-      "flow_mix": "흐름 + 블럭 + 대칭 통합 예측",
-      "reverse_only": "흐름 반전 기반 예측"
+      "flow_mix": "흐름 + 블럭 + 대칭 통합 점수제"
     };
 
     modes.forEach(mode => {
