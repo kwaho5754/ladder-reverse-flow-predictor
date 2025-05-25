@@ -1,4 +1,4 @@
-# ✅ main.py — 시작점 반전 / 홀짝 반전 블럭 기반 예측 (3~6줄)
+# ✅ main.py — 원본/대칭 + 역방향 예측 구조
 
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
@@ -11,8 +11,7 @@ CORS(app)
 
 URL = "https://ntry.com/data/json/games/power_ladder/recent_result.json"
 
-# 🔁 블럭 변환 함수들
-
+# 변환 및 대칭 함수
 def convert(entry):
     side = '좌' if entry['start_point'] == 'LEFT' else '우'
     count = str(entry['line_count'])
@@ -22,17 +21,25 @@ def convert(entry):
 def parse_block(s):
     return s[0], s[1:-1], s[-1]
 
-def flip_start_only(block):
+def flip_full(block):
     return [
-        ('우' if s == '좌' else '좌') + c + o
+        ('우' if s == '좌' else '좌') + c + ('짝' if o == '홀' else '홀')
         for s, c, o in map(parse_block, block)
     ]
 
-def flip_parity_only(block):
-    return [
-        s + c + ('짝' if o == '홀' else '홀')
-        for s, c, o in map(parse_block, block)
-    ]
+# 매칭 함수
+def find_prediction(block, all_blocks, reverse=False, use_bottom=False):
+    indices = reversed(range(len(all_blocks) - len(block))) if reverse else range(len(all_blocks) - len(block))
+    for i in indices:
+        if all_blocks[i:i+len(block)] == block:
+            if use_bottom:
+                if i + len(block) < len(all_blocks):
+                    return all_blocks[i + len(block)]
+            else:
+                if i - 1 >= 0:
+                    return all_blocks[i - 1]
+            break
+    return "❌ 없음"
 
 @app.route("/")
 def home():
@@ -48,26 +55,21 @@ def predict():
 
         size = int(mode[0])
         recent_block = [convert(d) for d in data[-size:]][::-1]
-
-        if mode.endswith("start"):
-            recent_block = flip_start_only(recent_block)
-        elif mode.endswith("parity"):
-            recent_block = flip_parity_only(recent_block)
-
+        flipped_block = flip_full(recent_block)[::-1]
         all_blocks = [convert(d) for d in data]
-        candidates = []
-        for i in range(len(all_blocks) - size + 1):
-            block = all_blocks[i:i+size]
-            if block == recent_block:
-                if i - 1 >= 0:
-                    candidates.append(all_blocks[i - 1])
 
-        freq = Counter(candidates)
-        top3 = [{"값": val, "횟수": cnt} for val, cnt in freq.most_common(3)]
-        while len(top3) < 3:
-            top3.append({"값": "❌ 없음", "횟수": 0})
+        if mode.endswith("orig"):
+            result = find_prediction(recent_block, all_blocks, reverse=False, use_bottom=False)
+        elif mode.endswith("flip"):
+            result = find_prediction(flipped_block, all_blocks, reverse=False, use_bottom=False)
+        elif mode.endswith("orig_rev"):
+            result = find_prediction(recent_block, all_blocks, reverse=True, use_bottom=True)
+        elif mode.endswith("flip_rev"):
+            result = find_prediction(flipped_block, all_blocks, reverse=True, use_bottom=True)
+        else:
+            result = "❌ 없음"
 
-        return jsonify({"예측회차": round_num, "Top3": top3})
+        return jsonify({"예측회차": round_num, "예측값": result})
 
     except Exception as e:
         return jsonify({"error": str(e)})

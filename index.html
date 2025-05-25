@@ -1,11 +1,11 @@
-<!-- ✅ index.html — 시작점 반전 / 홀짝 반전 블럭 예측 비교 (3~6줄) -->
+<!-- ✅ index.html — 4축 블럭 예측 비교 화면 (원본/대칭 + 정방향/역방향) -->
 
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>사다리 블럭 예측 비교</title>
+  <title>사다리 블럭 예측 비교 (4방향)</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -31,79 +31,66 @@
       margin-top: 0;
       font-size: 1.1em;
     }
-    ul {
-      padding-left: 20px;
-    }
-    li {
-      margin-bottom: 10px;
-    }
-    .score {
+    .value {
       font-weight: bold;
-      color: #0055aa;
-    }
-    .detail {
-      font-size: 0.9em;
-      color: #555;
-      margin-top: 4px;
+      color: #004488;
+      font-size: 1.2em;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
-  <h1>사다리 블럭 예측 비교 결과 (시작점 vs 홀짝 변형)</h1>
+  <h1>사다리 블럭 예측 비교 (원본/대칭 + 역방향)</h1>
 
   <div id="results"></div>
 
   <script>
-    const blockPairs = [
-      ["3block_start", "3block_parity"],
-      ["4block_start", "4block_parity"],
-      ["5block_start", "5block_parity"],
-      ["6block_start", "6block_parity"]
+    const modes = [
+      ["3block_orig", "3block_flip", "3block_orig_rev", "3block_flip_rev"],
+      ["4block_orig", "4block_flip", "4block_orig_rev", "4block_flip_rev"],
+      ["5block_orig", "5block_flip", "5block_orig_rev", "5block_flip_rev"],
+      ["6block_orig", "6block_flip", "6block_orig_rev", "6block_flip_rev"]
     ];
 
     const modeTitles = {
-      "3block_start": "3줄 시작점 반전", "3block_parity": "3줄 홀짝 반전",
-      "4block_start": "4줄 시작점 반전", "4block_parity": "4줄 홀짝 반전",
-      "5block_start": "5줄 시작점 반전", "5block_parity": "5줄 홀짝 반전",
-      "6block_start": "6줄 시작점 반전", "6block_parity": "6줄 홀짝 반전"
+      "orig": "원본 정방향",
+      "flip": "대칭 정방향",
+      "orig_rev": "원본 역방향",
+      "flip_rev": "대칭 역방향"
     };
 
     function createSection(mode, data) {
       const section = document.createElement("div");
       section.className = "section";
 
+      const mkey = mode.split("_")[1];
       const title = document.createElement("h2");
-      title.textContent = `${modeTitles[mode]} — 예측 회차: ${data["예측회차"]}`;
+      title.textContent = `${mode[0]}줄 — ${modeTitles[mkey]} (회차 ${data["예측회차"]})`;
       section.appendChild(title);
 
-      const ul = document.createElement("ul");
-      const resultList = data.Top3 || [];
+      const val = document.createElement("div");
+      val.className = "value";
+      val.textContent = data["예측값"] || "❌ 없음";
+      section.appendChild(val);
 
-      resultList.forEach((item, idx) => {
-        const li = document.createElement("li");
-        li.innerHTML = `<span class='score'>${idx + 1}위: ${item["값"]} (${item["횟수"]}회)</span>`;
-        ul.appendChild(li);
-      });
-
-      section.appendChild(ul);
       return section;
     }
 
-    async function loadBlockPair(leftMode, rightMode) {
-      const leftPromise = fetch(`/predict?mode=${leftMode}`).then(res => res.json());
-      const rightPromise = fetch(`/predict?mode=${rightMode}`).then(res => res.json());
-
-      const [leftData, rightData] = await Promise.all([leftPromise, rightPromise]);
-
+    async function loadModes(modesPerBlock) {
       const row = document.createElement("div");
       row.className = "row";
-      row.appendChild(createSection(leftMode, leftData));
-      row.appendChild(createSection(rightMode, rightData));
+
+      const promises = modesPerBlock.map(m => fetch(`/predict?mode=${m}`).then(r => r.json()));
+      const results = await Promise.all(promises);
+
+      modesPerBlock.forEach((m, i) => {
+        row.appendChild(createSection(m, results[i]));
+      });
 
       document.getElementById("results").appendChild(row);
     }
 
-    blockPairs.forEach(([left, right]) => loadBlockPair(left, right));
+    modes.forEach(group => loadModes(group));
   </script>
 </body>
 </html>
