@@ -1,17 +1,15 @@
-# ✅ main.py — 원본/대칭 + 역방향 예측 구조
+# ✅ main.py — 예측값과 사용 블럭 구조 반환 (블럭 파생 분석용)
 
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 import requests
 import os
-from collections import Counter
 
 app = Flask(__name__)
 CORS(app)
 
 URL = "https://ntry.com/data/json/games/power_ladder/recent_result.json"
 
-# 변환 및 대칭 함수
 def convert(entry):
     side = '좌' if entry['start_point'] == 'LEFT' else '우'
     count = str(entry['line_count'])
@@ -27,19 +25,15 @@ def flip_full(block):
         for s, c, o in map(parse_block, block)
     ]
 
-# 매칭 함수
 def find_prediction(block, all_blocks, reverse=False, use_bottom=False):
     indices = reversed(range(len(all_blocks) - len(block))) if reverse else range(len(all_blocks) - len(block))
     for i in indices:
         if all_blocks[i:i+len(block)] == block:
-            if use_bottom:
-                if i + len(block) < len(all_blocks):
-                    return all_blocks[i + len(block)]
-            else:
-                if i - 1 >= 0:
-                    return all_blocks[i - 1]
-            break
-    return "❌ 없음"
+            pred = all_blocks[i + len(block)] if use_bottom and i + len(block) < len(all_blocks) else (
+                all_blocks[i - 1] if not use_bottom and i - 1 >= 0 else "❌ 없음"
+            )
+            return pred, ">".join(block)
+    return "❌ 없음", ">".join(block)
 
 @app.route("/")
 def home():
@@ -59,17 +53,21 @@ def predict():
         all_blocks = [convert(d) for d in data]
 
         if mode.endswith("orig"):
-            result = find_prediction(recent_block, all_blocks, reverse=False, use_bottom=False)
+            result, blk = find_prediction(recent_block, all_blocks, reverse=False, use_bottom=False)
         elif mode.endswith("flip"):
-            result = find_prediction(flipped_block, all_blocks, reverse=False, use_bottom=False)
+            result, blk = find_prediction(flipped_block, all_blocks, reverse=False, use_bottom=False)
         elif mode.endswith("orig_rev"):
-            result = find_prediction(recent_block, all_blocks, reverse=True, use_bottom=True)
+            result, blk = find_prediction(recent_block, all_blocks, reverse=True, use_bottom=True)
         elif mode.endswith("flip_rev"):
-            result = find_prediction(flipped_block, all_blocks, reverse=True, use_bottom=True)
+            result, blk = find_prediction(flipped_block, all_blocks, reverse=True, use_bottom=True)
         else:
-            result = "❌ 없음"
+            result, blk = "❌ 없음", ">".join(recent_block)
 
-        return jsonify({"예측회차": round_num, "예측값": result})
+        return jsonify({
+            "예측회차": round_num,
+            "예측값": result,
+            "블럭": blk
+        })
 
     except Exception as e:
         return jsonify({"error": str(e)})
