@@ -39,14 +39,14 @@ def flip_odd_even(block):
         flipped.append(s_flip + c_flip + o)
     return flipped
 
-# ✅ 최근 매칭된 블럭 기준으로 예측값 반환
+# ✅ 최근 매칭된 블럭 기준으로 "위줄" 예측값 반환
 def find_flow_match(block, full_data):
     block_len = len(block)
     for i in reversed(range(len(full_data) - block_len)):
         candidate = full_data[i:i+block_len]
         if candidate == block:
-            pred_index = i + block_len
-            pred = full_data[pred_index] if pred_index < len(full_data) else "❌ 없음"
+            pred_index = i - 1
+            pred = full_data[pred_index] if pred_index >= 0 else "❌ 없음"
             return pred, ">".join(block), i + 1
     return "❌ 없음", ">".join(block), -1
 
@@ -62,7 +62,7 @@ def predict():
         mode = request.args.get("mode", "3block_orig")
         round_num = int(data[0]['date_round']) + 1
         size = int(mode[0])
-        recent_flow = [convert(d) for d in data[:size]][::-1]
+        recent_flow = [convert(d) for d in data[:size]]  # ✅ 더 이상 뒤집지 않음
         all_data = [convert(d) for d in data]
 
         if "flip_full" in mode:
