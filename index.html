@@ -1,11 +1,11 @@
-<!-- ✅ index.html — 방향별 블럭 분리 + 낮은 블럭 먼저 정렬 -->
+<!-- ✅ index.html — 블럭 포함관계 + 예측값 동일할 때만 색상 묶기 + 3~6줄 순 정렬 -->
 
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>사다리 블럭 예측 비교 (방향별 파생 구분 + 낮은 블럭부터)</title>
+  <title>사다리 블럭 예측 비교</title>
   <style>
     body { font-family: Arial; background: #f9f9f9; padding: 20px; }
     h1 { margin-bottom: 30px; }
@@ -25,7 +25,7 @@
   </style>
 </head>
 <body>
-  <h1>사다리 블럭 예측 비교 (파생 블럭 색상 + 방향 구분)</h1>
+  <h1>사다리 블럭 예측 비교</h1>
   <div id="results"></div>
 
   <script>
@@ -49,7 +49,7 @@
       return "";
     }
 
-    function assignColorsByBlock(blocks, modesList) {
+    function assignColorsStrict(blocks, modesList) {
       const colorMap = {};
       const palette = ["#fff8c6", "#cdefff", "#e6ccff", "#d6f6e0", "#fbdada", "#ffe0cc", "#ccf2ff"];
       let groupIndex = 0;
@@ -57,18 +57,23 @@
 
       for (let i = 0; i < blocks.length; i++) {
         const modeKey = getModeKey(modesList[i]);
-        const groupKey = modeKey + ":" + blocks[i]["블럭"];
+        const blockStr = blocks[i]["블럭"];
+        const value = blocks[i]["예측값"];
 
         let matched = false;
         for (const g of groups) {
-          if (groupKey.startsWith(g.representative)) {
+          if (
+            g.mode === modeKey &&
+            value === g.value &&
+            (blockStr.startsWith(g.block) || g.block.startsWith(blockStr))
+          ) {
             g.items.push(i);
             matched = true;
             break;
           }
         }
         if (!matched) {
-          groups.push({ representative: groupKey, items: [i] });
+          groups.push({ mode: modeKey, value: value, block: blockStr, items: [i] });
         }
       }
 
@@ -78,6 +83,7 @@
           colorMap[i] = color;
         });
       });
+
       return colorMap;
     }
 
@@ -120,7 +126,7 @@
         groupModes.map(m => fetch(`/predict?mode=${m}`).then(res => res.json()))
       );
 
-      const colorMap = assignColorsByBlock(results, groupModes);
+      const colorMap = assignColorsStrict(results, groupModes);
 
       groupModes.forEach((mode, i) => {
         row.appendChild(createCard(mode, results[i], colorMap[i]));
@@ -130,7 +136,7 @@
       document.getElementById("results").appendChild(container);
     }
 
-    modes.sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
+    // 고정된 순서: 3 → 4 → 5 → 6
     modes.forEach(loadGroup);
   </script>
 </body>
