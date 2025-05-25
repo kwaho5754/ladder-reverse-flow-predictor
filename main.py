@@ -39,14 +39,15 @@ def flip_odd_even(block):
         flipped.append(s_flip + c_flip + o)
     return flipped
 
+# ✅ 최근 매칭된 블럭 기준으로 예측값 반환
 def find_flow_match(block, full_data):
     block_len = len(block)
-    for i in range(len(full_data) - block_len):
+    for i in reversed(range(len(full_data) - block_len)):
         candidate = full_data[i:i+block_len]
         if candidate == block:
             pred_index = i + block_len
             pred = full_data[pred_index] if pred_index < len(full_data) else "❌ 없음"
-            return pred, ">".join(block), i + 1  # ✅ 순번은 사람기준 1부터 시작
+            return pred, ">".join(block), i + 1
     return "❌ 없음", ">".join(block), -1
 
 @app.route("/")
