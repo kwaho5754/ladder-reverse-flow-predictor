@@ -1,5 +1,3 @@
-# ✅ main.py — 예측값 위치를 블럭 "아래줄" 기준으로 수정
-
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 import requests
@@ -46,10 +44,8 @@ def find_flow_match(block, full_data):
     for i in range(len(full_data) - block_len):
         candidate = full_data[i:i+block_len]
         if candidate == block:
-            pred_index = i + block_len  # ✅ 블럭 "아래줄"을 예측값으로
-            pred = full_data[pred_index] if 0 <= pred_index < len(full_data) else "❌ 없음"
-            return pred, ">".join(block)
-    return "❌ 없음", ">".join(block)
+            return ">".join(block)
+    return ">".join(block)
 
 @app.route("/")
 def home():
@@ -60,11 +56,16 @@ def predict():
     try:
         raw = requests.get(URL).json()
         data = raw[-288:]
-        mode = request.args.get("mode", "3block_orig")
-        round_num = int(raw[0]['date_round']) + 1
 
+        mode = request.args.get("mode", "3block_orig")
         size = int(mode[0])
-        recent_flow = [convert(d) for d in data[:size]][::-1]
+
+        # ✅ 예측값: 가장 최신줄 (data[0])
+        prediction_value = convert(data[0])
+        round_num = int(data[0]['date_round']) + 1
+
+        # ✅ 블럭: 예측값 아래줄부터 size개
+        recent_flow = [convert(d) for d in data[1:size+1]][::-1]
         all_data = [convert(d) for d in data]
 
         if "flip_full" in mode:
@@ -76,11 +77,11 @@ def predict():
         else:
             flow = recent_flow
 
-        result, blk = find_flow_match(flow, all_data)
+        blk = find_flow_match(flow, all_data)
 
         return jsonify({
             "예측회차": round_num,
-            "예측값": result,
+            "예측값": prediction_value,
             "블럭": blk
         })
 
