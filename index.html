@@ -69,6 +69,13 @@
       "6block": "6줄 블럭 예측 결과"
     };
 
+    const transformLabel = {
+      "orig": "원본",
+      "flip_start": "시작점 고정",
+      "flip_odd_even": "홀짝 고정",
+      "flip_full": "풀 대칭"
+    };
+
     const getModeKey = (mode) => mode.split("_")[0];
 
     function createCard(mode, data, color) {
@@ -76,6 +83,8 @@
       card.className = "card";
 
       const mkey = getModeKey(mode);
+      const typeKey = mode.split("_").slice(1).join("_");
+
       const label = document.createElement("h3");
       label.textContent = `${modeTitles[mkey]} (${transformLabel[typeKey]}) (회차 ${data["예측회차"]})`;
       card.appendChild(label);
