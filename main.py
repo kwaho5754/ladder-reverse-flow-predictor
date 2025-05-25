@@ -1,4 +1,3 @@
-```python
 # ✅ main.py — 시작점/홀짝점 기반 변형 구조 적용 + 블럭 순서 오류 수정
 
 from flask import Flask, jsonify, request, send_file
