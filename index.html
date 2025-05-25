@@ -1,11 +1,11 @@
-<!-- ✅ index.html — 중복 예측값 표시 + 블럭 매칭 여부 설명 포함 -->
+<!-- ✅ index.html — 중복된 예측값에 동일 색상 입히기 -->
 
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>사다리 블럭 예측 비교 (중복 예측값 강조)</title>
+  <title>사다리 블럭 예측 비교 (색상 기반 중복 강조)</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -48,22 +48,20 @@
       font-size: 1.2em;
       color: #004488;
       margin-top: 5px;
+      padding: 4px 6px;
+      border-radius: 6px;
+      display: inline-block;
     }
     .note {
       font-size: 0.9em;
       color: #888;
       margin-top: 4px;
     }
-    .highlight {
-      background-color: #d2f5d2;
-      padding: 3px 6px;
-      border-radius: 4px;
-      display: inline-block;
-    }
   </style>
 </head>
 <body>
-  <h1>사다리 블럭 예측 비교 (원본/대칭 + 정방향/역방향)</h1>
+  <h1>사다리 블럭 예측 비교 (중복값 동일 색상 강조)</h1>
+
   <div id="results"></div>
 
   <script>
@@ -99,7 +97,20 @@
       return counts;
     }
 
-    function createCard(mode, data, overlapCount) {
+    function assignColors(duplicates) {
+      const palette = ["#fff8c6", "#cdefff", "#e6ccff", "#d6f6e0", "#fbdada", "#ffe0cc", "#ccf2ff"];
+      const colorMap = {};
+      let i = 0;
+      Object.keys(duplicates).forEach(val => {
+        if (duplicates[val] > 1) {
+          colorMap[val] = palette[i % palette.length];
+          i++;
+        }
+      });
+      return colorMap;
+    }
+
+    function createCard(mode, data, overlapCount, colorMap) {
       const card = document.createElement("div");
       card.className = "card";
 
@@ -111,12 +122,17 @@
       const value = document.createElement("div");
       value.className = "value";
       value.textContent = data["예측값"] || "❌ 없음";
+
+      if (colorMap[data["예측값"]]) {
+        value.style.backgroundColor = colorMap[data["예측값"]];
+      }
+
       card.appendChild(value);
 
       if (data["예측값"] !== "❌ 없음" && overlapCount[data["예측값"]] > 1) {
         const note = document.createElement("div");
         note.className = "note";
-        note.innerHTML = `<span class="highlight">여러 블럭에서 중복 예측</span>`;
+        note.textContent = `다른 블럭과 중복된 예측값입니다.`;
         card.appendChild(note);
       }
 
@@ -139,9 +155,10 @@
       const results = await Promise.all(promises);
       const allValues = results.map(r => r["예측값"]);
       const overlap = getOverlapCounts(allValues);
+      const colorMap = assignColors(overlap);
 
       groupModes.forEach((mode, i) => {
-        row.appendChild(createCard(mode, results[i], overlap));
+        row.appendChild(createCard(mode, results[i], overlap, colorMap));
       });
 
       container.appendChild(row);
