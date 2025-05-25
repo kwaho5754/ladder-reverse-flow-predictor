@@ -1,4 +1,4 @@
-# ✅ main.py — 흐름 기반 블럭 매칭 방식 적용
+# ✅ main.py — 시작점/홀짝점 기반 변형 구조 적용 (역방향 제거)
 
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
@@ -20,21 +20,36 @@ def parse_block(s):
     return s[0], s[1:-1], s[-1]
 
 def flip_full(block):
+    # 대칭 전체: 시작점 + 홀짝 반전
     return [
         ('우' if s == '좌' else '좌') + c + ('짝' if o == '홀' else '홀')
         for s, c, o in map(parse_block, block)
     ]
 
-def find_flow_match(block, full_data, reverse=False, use_bottom=False):
+def flip_start(block):
+    # 시작점 고정, 중간 줄수 + 홀짝 반전
+    flipped = []
+    for s, c, o in map(parse_block, block):
+        c_flip = '4' if c == '3' else '3'
+        o_flip = '홀' if o == '짝' else '짝'
+        flipped.append(s + c_flip + o_flip)
+    return flipped
+
+def flip_odd_even(block):
+    # 홀짝 고정, 앞 시작점 + 줄수 반전
+    flipped = []
+    for s, c, o in map(parse_block, block):
+        s_flip = '우' if s == '좌' else '좌'
+        c_flip = '4' if c == '3' else '3'
+        flipped.append(s_flip + c_flip + o)
+    return flipped
+
+def find_flow_match(block, full_data):
     block_len = len(block)
-    indices = reversed(range(len(full_data) - block_len)) if reverse else range(len(full_data) - block_len)
-    for i in indices:
+    for i in range(len(full_data) - block_len):
         candidate = full_data[i:i+block_len]
         if candidate == block:
-            if reverse:
-                pred_index = i + block_len if use_bottom and i + block_len < len(full_data) else -1
-            else:
-                pred_index = i - 1 if not use_bottom and i - 1 >= 0 else -1
+            pred_index = i - 1 if i - 1 >= 0 else -1
             pred = full_data[pred_index] if 0 <= pred_index < len(full_data) else "❌ 없음"
             return pred, ">".join(block)
     return "❌ 없음", ">".join(block)
@@ -51,25 +66,21 @@ def predict():
         mode = request.args.get("mode", "3block_orig")
         round_num = int(raw[0]['date_round']) + 1
 
-        # 블럭 크기 (3~6)
+        # 블럭 크기
         size = int(mode[0])
         recent_flow = [convert(d) for d in data[-size:]][::-1]
         all_data = [convert(d) for d in data]
 
-        # 방향 및 대칭 판단
-        is_flip = "flip" in mode
-        is_reverse = "rev" in mode
-
-        # 블럭 변환
-        if is_flip:
+        if "flip_full" in mode:
             flow = flip_full(recent_flow)
+        elif "flip_start" in mode:
+            flow = flip_start(recent_flow)
+        elif "flip_odd_even" in mode:
+            flow = flip_odd_even(recent_flow)
         else:
             flow = recent_flow
 
-        if is_reverse:
-            flow = flow[::-1]
-
-        result, blk = find_flow_match(flow, all_data, reverse=is_reverse, use_bottom=is_reverse)
+        result, blk = find_flow_match(flow, all_data)
 
         return jsonify({
             "예측회차": round_num,

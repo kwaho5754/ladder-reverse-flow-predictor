@@ -1,4 +1,4 @@
-<!-- ✅ index.html — 블럭 포함관계 + 예측값 동일할 때만 색상 묶기 + 3~6줄 순 정렬 (강제 적용) -->
+<!-- ✅ index.html — 시작점/홀짝점 기반 변형 구조 적용 (역방향 제거, 4모드 구조 적용) -->
 
 <!DOCTYPE html>
 <html lang="ko">
@@ -30,22 +30,24 @@
 
   <script>
     const modes = [
-      { size: 3, modes: ["3block_orig", "3block_flip", "3block_orig_rev", "3block_flip_rev"] },
-      { size: 4, modes: ["4block_orig", "4block_flip", "4block_orig_rev", "4block_flip_rev"] },
-      { size: 5, modes: ["5block_orig", "5block_flip", "5block_orig_rev", "5block_flip_rev"] },
-      { size: 6, modes: ["6block_orig", "6block_flip", "6block_orig_rev", "6block_flip_rev"] }
+      { size: 3, modes: ["3block_orig", "3block_flip_full", "3block_flip_start", "3block_flip_odd_even"] },
+      { size: 4, modes: ["4block_orig", "4block_flip_full", "4block_flip_start", "4block_flip_odd_even"] },
+      { size: 5, modes: ["5block_orig", "5block_flip_full", "5block_flip_start", "5block_flip_odd_even"] },
+      { size: 6, modes: ["6block_orig", "6block_flip_full", "6block_flip_start", "6block_flip_odd_even"] }
     ];
 
     const modeTitles = {
-      "orig": "원본 정방향", "flip": "대칭 정방향",
-      "orig_rev": "원본 역방향", "flip_rev": "대칭 역방향"
+      "orig": "원본",
+      "flip_full": "대칭 전체",
+      "flip_start": "시작점 고정",
+      "flip_odd_even": "홀짝점 고정"
     };
 
     function getModeKey(mode) {
-      if (mode.includes("orig") && mode.includes("rev")) return "orig_rev";
-      if (mode.includes("flip") && mode.includes("rev")) return "flip_rev";
+      if (mode.includes("flip_full")) return "flip_full";
+      if (mode.includes("flip_start")) return "flip_start";
+      if (mode.includes("flip_odd_even")) return "flip_odd_even";
       if (mode.includes("orig")) return "orig";
-      if (mode.includes("flip")) return "flip";
       return "";
     }
 
