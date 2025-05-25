@@ -1,4 +1,4 @@
-<!-- ✅ index.html — 4축 블럭 예측 비교 화면 (원본/대칭 + 정방향/역방향, 블럭별 세로 정렬) -->
+<!-- ✅ index.html — 4축 예측 결과: 블럭별 가로 정렬 (원본/대칭/역방향) -->
 
 <!DOCTYPE html>
 <html lang="ko">
@@ -17,27 +17,31 @@
     }
     .block-group {
       margin-bottom: 40px;
-      background: #ffffff;
-      border-radius: 10px;
-      padding: 20px;
-      box-shadow: 0 0 8px rgba(0,0,0,0.1);
     }
     .block-group h2 {
-      margin-top: 0;
       font-size: 1.3em;
-      margin-bottom: 20px;
+      margin-bottom: 10px;
     }
-    .section {
-      margin-bottom: 15px;
+    .row {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      padding: 10px;
+      background: #eef5fb;
+      border-radius: 10px;
+    }
+    .card {
+      flex: 1;
+      min-width: 200px;
+      background: #ffffff;
+      border-radius: 8px;
       padding: 15px;
-      border-left: 6px solid #007acc;
-      background: #f0f8ff;
-      border-radius: 6px;
+      box-shadow: 0 0 6px rgba(0,0,0,0.1);
     }
-    .section h3 {
+    .card h3 {
       margin: 0;
       font-size: 1em;
-      color: #333;
+      color: #444;
     }
     .value {
       font-weight: bold;
@@ -69,7 +73,7 @@
 
     function createCard(mode, data) {
       const card = document.createElement("div");
-      card.className = "section";
+      card.className = "card";
 
       const mkey = mode.split("_")[1];
       const label = document.createElement("h3");
@@ -93,13 +97,17 @@
       heading.textContent = `${size}줄 블럭 예측 결과`;
       container.appendChild(heading);
 
+      const row = document.createElement("div");
+      row.className = "row";
+
       const promises = groupModes.map(m => fetch(`/predict?mode=${m}`).then(res => res.json()));
       const results = await Promise.all(promises);
 
       groupModes.forEach((mode, i) => {
-        container.appendChild(createCard(mode, results[i]));
+        row.appendChild(createCard(mode, results[i]));
       });
 
+      container.appendChild(row);
       document.getElementById("results").appendChild(container);
     }
 
