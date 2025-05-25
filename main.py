@@ -1,4 +1,5 @@
-# ✅ main.py — 시작점/홀짝점 기반 변형 구조 적용 (역방향 제거)
+```python
+# ✅ main.py — 시작점/홀짝점 기반 변형 구조 적용 + 블럭 순서 오류 수정
 
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
@@ -66,9 +67,9 @@ def predict():
         mode = request.args.get("mode", "3block_orig")
         round_num = int(raw[0]['date_round']) + 1
 
-        # 블럭 크기
+        # ✅ 수정된 블럭 추출 방식 (최신 N줄 → 정방향으로)
         size = int(mode[0])
-        recent_flow = [convert(d) for d in data[-size:]][::-1]
+        recent_flow = [convert(d) for d in data[:size]][::-1]
         all_data = [convert(d) for d in data]
 
         if "flip_full" in mode:
