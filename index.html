@@ -1,29 +1,134 @@
-<script>
-  function createCard(mode, data, color) {
-    const card = document.createElement("div");
-    card.className = "card";
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>사다리 블럭 예측 비교</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+      background-color: #f4f7ff;
+    }
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+    }
+    .section {
+      margin-bottom: 2rem;
+    }
+    .card-group {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .card {
+      background: #fff;
+      padding: 1rem;
+      border-radius: 0.8rem;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+      width: 240px;
+    }
+    .card h3 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1rem;
+    }
+    .value {
+      font-size: 1.4rem;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+      background: #e1edff;
+      padding: 0.3rem 0.5rem;
+      display: inline-block;
+      border-radius: 0.4rem;
+    }
+    .note {
+      font-size: 0.85rem;
+      color: #555;
+      margin-top: 0.2rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>사다리 블럭 예측 비교</h1>
 
-    const mkey = getModeKey(mode);
-    const label = document.createElement("h3");
-    label.textContent = `${modeTitles[mkey]} (회차 ${data["예측회차"]})`;
-    card.appendChild(label);
+  <div id="results"></div>
 
-    const value = document.createElement("div");
-    value.className = "value";
-    value.textContent = data["예측값"] || "❌ 없음";
-    if (color) value.style.backgroundColor = color;
-    card.appendChild(value);
+  <script>
+    const modes = [
+      "3block_orig", "3block_flip_start", "3block_flip_odd_even", "3block_flip_full",
+      "4block_orig", "4block_flip_start", "4block_flip_odd_even", "4block_flip_full",
+      "5block_orig", "5block_flip_start", "5block_flip_odd_even", "5block_flip_full",
+      "6block_orig", "6block_flip_start", "6block_flip_odd_even", "6block_flip_full"
+    ];
 
-    const note = document.createElement("div");
-    note.className = "note";
-    note.textContent = `블럭: ${data["블럭"]}`;
-    card.appendChild(note);
+    const modeTitles = {
+      "3block": "3줄 블럭 예측 결과",
+      "4block": "4줄 블럭 예측 결과",
+      "5block": "5줄 블럭 예측 결과",
+      "6block": "6줄 블럭 예측 결과"
+    };
 
-    const match = document.createElement("div");
-    match.className = "note";
-    match.textContent = `매칭순번: ${data["매칭순번"]}`;
-    card.appendChild(match);
+    const getModeKey = (mode) => mode.split("_")[0];
 
-    return card;
-  }
-</script>
+    function createCard(mode, data, color) {
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const mkey = getModeKey(mode);
+      const label = document.createElement("h3");
+      label.textContent = `${modeTitles[mkey]} (회차 ${data["예측회차"]})`;
+      card.appendChild(label);
+
+      const value = document.createElement("div");
+      value.className = "value";
+      value.textContent = data["예측값"] || "❌ 없음";
+      if (color) value.style.backgroundColor = color;
+      card.appendChild(value);
+
+      const note = document.createElement("div");
+      note.className = "note";
+      note.textContent = `블럭: ${data["블럭"]}`;
+      card.appendChild(note);
+
+      const match = document.createElement("div");
+      match.className = "note";
+      match.textContent = `매칭순번: ${data["매칭순번"]}`;
+      card.appendChild(match);
+
+      return card;
+    }
+
+    async function loadResults() {
+      const resultContainer = document.getElementById("results");
+      const sectionMap = {};
+
+      for (const mode of modes) {
+        const res = await fetch(`/predict?mode=${mode}`);
+        const data = await res.json();
+
+        const sectionKey = getModeKey(mode);
+        if (!sectionMap[sectionKey]) {
+          const section = document.createElement("div");
+          section.className = "section";
+
+          const title = document.createElement("h2");
+          title.textContent = modeTitles[sectionKey];
+          section.appendChild(title);
+
+          const group = document.createElement("div");
+          group.className = "card-group";
+          section.appendChild(group);
+
+          resultContainer.appendChild(section);
+          sectionMap[sectionKey] = group;
+        }
+
+        sectionMap[sectionKey].appendChild(createCard(mode, data));
+      }
+    }
+
+    loadResults();
+  </script>
+</body>
+</html>
