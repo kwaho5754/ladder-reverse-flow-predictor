@@ -1,4 +1,4 @@
-<!-- ✅ index.html — 4축 예측 결과: 블럭별 가로 정렬 (원본/대칭/역방향) -->
+<!-- ✅ index.html — 4축 예측 라벨 정확히 구분 (원본/대칭 + 정방향/역방향) -->
 
 <!DOCTYPE html>
 <html lang="ko">
@@ -71,13 +71,21 @@
       "flip_rev": "대칭 역방향"
     };
 
+    function getModeKey(mode) {
+      if (mode.includes("orig") && mode.includes("rev")) return "orig_rev";
+      if (mode.includes("flip") && mode.includes("rev")) return "flip_rev";
+      if (mode.includes("orig")) return "orig";
+      if (mode.includes("flip")) return "flip";
+      return "";
+    }
+
     function createCard(mode, data) {
       const card = document.createElement("div");
       card.className = "card";
 
-      const mkey = mode.split("_")[1];
+      const mkey = getModeKey(mode);
       const label = document.createElement("h3");
-      label.textContent = modeTitles[mkey] + ` (회차 ${data["예측회차"]})`;
+      label.textContent = `${modeTitles[mkey]} (회차 ${data["예측회차"]})`;
       card.appendChild(label);
 
       const value = document.createElement("div");
