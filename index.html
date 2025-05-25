@@ -1,4 +1,4 @@
-<!-- ✅ index.html — 블럭 포함관계 + 예측값 동일할 때만 색상 묶기 + 3~6줄 순 정렬 -->
+<!-- ✅ index.html — 블럭 포함관계 + 예측값 동일할 때만 색상 묶기 + 3~6줄 순 정렬 (강제 적용) -->
 
 <!DOCTYPE html>
 <html lang="ko">
@@ -30,10 +30,10 @@
 
   <script>
     const modes = [
-      ["3block_orig", "3block_flip", "3block_orig_rev", "3block_flip_rev"],
-      ["4block_orig", "4block_flip", "4block_orig_rev", "4block_flip_rev"],
-      ["5block_orig", "5block_flip", "5block_orig_rev", "5block_flip_rev"],
-      ["6block_orig", "6block_flip", "6block_orig_rev", "6block_flip_rev"]
+      { size: 3, modes: ["3block_orig", "3block_flip", "3block_orig_rev", "3block_flip_rev"] },
+      { size: 4, modes: ["4block_orig", "4block_flip", "4block_orig_rev", "4block_flip_rev"] },
+      { size: 5, modes: ["5block_orig", "5block_flip", "5block_orig_rev", "5block_flip_rev"] },
+      { size: 6, modes: ["6block_orig", "6block_flip", "6block_orig_rev", "6block_flip_rev"] }
     ];
 
     const modeTitles = {
@@ -52,7 +52,6 @@
     function assignColorsStrict(blocks, modesList) {
       const colorMap = {};
       const palette = ["#fff8c6", "#cdefff", "#e6ccff", "#d6f6e0", "#fbdada", "#ffe0cc", "#ccf2ff"];
-      let groupIndex = 0;
       const groups = [];
 
       for (let i = 0; i < blocks.length; i++) {
@@ -110,13 +109,12 @@
       return card;
     }
 
-    async function loadGroup(groupModes) {
+    async function loadGroup(groupModes, blockSize) {
       const container = document.createElement("div");
       container.className = "block-group";
 
-      const size = groupModes[0][0];
       const heading = document.createElement("h2");
-      heading.textContent = `${size}줄 블럭 예측 결과`;
+      heading.textContent = `${blockSize}줄 블럭 예측 결과`;
       container.appendChild(heading);
 
       const row = document.createElement("div");
@@ -136,8 +134,8 @@
       document.getElementById("results").appendChild(container);
     }
 
-    // 고정된 순서: 3 → 4 → 5 → 6
-    modes.forEach(loadGroup);
+    modes.sort((a, b) => a.size - b.size);
+    modes.forEach(group => loadGroup(group.modes, group.size));
   </script>
 </body>
 </html>
