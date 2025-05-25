@@ -1,4 +1,4 @@
-# ✅ main.py — 예측값과 사용 블럭 구조 반환 (블럭 파생 분석용)
+# ✅ main.py — 흐름 기반 블럭 매칭 방식 적용
 
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
@@ -25,13 +25,17 @@ def flip_full(block):
         for s, c, o in map(parse_block, block)
     ]
 
-def find_prediction(block, all_blocks, reverse=False, use_bottom=False):
-    indices = reversed(range(len(all_blocks) - len(block))) if reverse else range(len(all_blocks) - len(block))
+def find_flow_match(block, full_data, reverse=False, use_bottom=False):
+    block_len = len(block)
+    indices = reversed(range(len(full_data) - block_len)) if reverse else range(len(full_data) - block_len)
     for i in indices:
-        if all_blocks[i:i+len(block)] == block:
-            pred = all_blocks[i + len(block)] if use_bottom and i + len(block) < len(all_blocks) else (
-                all_blocks[i - 1] if not use_bottom and i - 1 >= 0 else "❌ 없음"
-            )
+        candidate = full_data[i:i+block_len]
+        if candidate == block:
+            if reverse:
+                pred_index = i + block_len if use_bottom and i + block_len < len(full_data) else -1
+            else:
+                pred_index = i - 1 if not use_bottom and i - 1 >= 0 else -1
+            pred = full_data[pred_index] if 0 <= pred_index < len(full_data) else "❌ 없음"
             return pred, ">".join(block)
     return "❌ 없음", ">".join(block)
 
@@ -44,24 +48,28 @@ def predict():
     try:
         raw = requests.get(URL).json()
         data = raw[-288:]
-        mode = request.args.get("mode", "3block")
+        mode = request.args.get("mode", "3block_orig")
         round_num = int(raw[0]['date_round']) + 1
 
+        # 블럭 크기 (3~6)
         size = int(mode[0])
-        recent_block = [convert(d) for d in data[-size:]][::-1]
-        flipped_block = flip_full(recent_block)[::-1]
-        all_blocks = [convert(d) for d in data]
+        recent_flow = [convert(d) for d in data[-size:]][::-1]
+        all_data = [convert(d) for d in data]
 
-        if mode.endswith("orig"):
-            result, blk = find_prediction(recent_block, all_blocks, reverse=False, use_bottom=False)
-        elif mode.endswith("flip"):
-            result, blk = find_prediction(flipped_block, all_blocks, reverse=False, use_bottom=False)
-        elif mode.endswith("orig_rev"):
-            result, blk = find_prediction(recent_block, all_blocks, reverse=True, use_bottom=True)
-        elif mode.endswith("flip_rev"):
-            result, blk = find_prediction(flipped_block, all_blocks, reverse=True, use_bottom=True)
+        # 방향 및 대칭 판단
+        is_flip = "flip" in mode
+        is_reverse = "rev" in mode
+
+        # 블럭 변환
+        if is_flip:
+            flow = flip_full(recent_flow)
         else:
-            result, blk = "❌ 없음", ">".join(recent_block)
+            flow = recent_flow
+
+        if is_reverse:
+            flow = flow[::-1]
+
+        result, blk = find_flow_match(flow, all_data, reverse=is_reverse, use_bottom=is_reverse)
 
         return jsonify({
             "예측회차": round_num,
