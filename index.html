@@ -1,4 +1,4 @@
-<!-- ✅ index.html — 4축 블럭 예측 비교 화면 (원본/대칭 + 정방향/역방향) -->
+<!-- ✅ index.html — 4축 블럭 예측 비교 화면 (원본/대칭 + 정방향/역방향, 블럭별 세로 정렬) -->
 
 <!DOCTYPE html>
 <html lang="ko">
@@ -15,32 +15,40 @@
     h1 {
       margin-bottom: 30px;
     }
-    .row {
-      display: flex;
-      gap: 20px;
-      margin-bottom: 30px;
-    }
-    .section {
-      flex: 1;
-      background: white;
+    .block-group {
+      margin-bottom: 40px;
+      background: #ffffff;
       border-radius: 10px;
       padding: 20px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
     }
-    h2 {
+    .block-group h2 {
       margin-top: 0;
-      font-size: 1.1em;
+      font-size: 1.3em;
+      margin-bottom: 20px;
+    }
+    .section {
+      margin-bottom: 15px;
+      padding: 15px;
+      border-left: 6px solid #007acc;
+      background: #f0f8ff;
+      border-radius: 6px;
+    }
+    .section h3 {
+      margin: 0;
+      font-size: 1em;
+      color: #333;
     }
     .value {
       font-weight: bold;
-      color: #004488;
       font-size: 1.2em;
-      margin-top: 10px;
+      color: #004488;
+      margin-top: 5px;
     }
   </style>
 </head>
 <body>
-  <h1>사다리 블럭 예측 비교 (원본/대칭 + 역방향)</h1>
+  <h1>사다리 블럭 예측 비교 (원본/대칭 + 정방향/역방향)</h1>
 
   <div id="results"></div>
 
@@ -59,38 +67,43 @@
       "flip_rev": "대칭 역방향"
     };
 
-    function createSection(mode, data) {
-      const section = document.createElement("div");
-      section.className = "section";
+    function createCard(mode, data) {
+      const card = document.createElement("div");
+      card.className = "section";
 
       const mkey = mode.split("_")[1];
-      const title = document.createElement("h2");
-      title.textContent = `${mode[0]}줄 — ${modeTitles[mkey]} (회차 ${data["예측회차"]})`;
-      section.appendChild(title);
+      const label = document.createElement("h3");
+      label.textContent = modeTitles[mkey] + ` (회차 ${data["예측회차"]})`;
+      card.appendChild(label);
 
-      const val = document.createElement("div");
-      val.className = "value";
-      val.textContent = data["예측값"] || "❌ 없음";
-      section.appendChild(val);
+      const value = document.createElement("div");
+      value.className = "value";
+      value.textContent = data["예측값"] || "❌ 없음";
+      card.appendChild(value);
 
-      return section;
+      return card;
     }
 
-    async function loadModes(modesPerBlock) {
-      const row = document.createElement("div");
-      row.className = "row";
+    async function loadGroup(groupModes) {
+      const container = document.createElement("div");
+      container.className = "block-group";
 
-      const promises = modesPerBlock.map(m => fetch(`/predict?mode=${m}`).then(r => r.json()));
+      const size = groupModes[0][0];
+      const heading = document.createElement("h2");
+      heading.textContent = `${size}줄 블럭 예측 결과`;
+      container.appendChild(heading);
+
+      const promises = groupModes.map(m => fetch(`/predict?mode=${m}`).then(res => res.json()));
       const results = await Promise.all(promises);
 
-      modesPerBlock.forEach((m, i) => {
-        row.appendChild(createSection(m, results[i]));
+      groupModes.forEach((mode, i) => {
+        container.appendChild(createCard(mode, results[i]));
       });
 
-      document.getElementById("results").appendChild(row);
+      document.getElementById("results").appendChild(container);
     }
 
-    modes.forEach(group => loadModes(group));
+    modes.forEach(group => loadGroup(group));
   </script>
 </body>
 </html>
