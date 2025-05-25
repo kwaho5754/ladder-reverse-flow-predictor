@@ -1,143 +1,36 @@
-<!-- ✅ index.html — 시작점/홀짝점 기반 변형 구조 적용 (역방향 제거, 4모드 구조 적용) -->
 
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>사다리 블럭 예측 비교</title>
-  <style>
-    body { font-family: Arial; background: #f9f9f9; padding: 20px; }
-    h1 { margin-bottom: 30px; }
-    .block-group { margin-bottom: 40px; }
-    .block-group h2 { font-size: 1.3em; margin-bottom: 10px; }
-    .row { display: flex; gap: 20px; flex-wrap: wrap; padding: 10px; background: #eef5fb; border-radius: 10px; }
-    .card {
-      flex: 1; min-width: 220px; background: #ffffff; border-radius: 8px;
-      padding: 15px; box-shadow: 0 0 6px rgba(0,0,0,0.1);
-    }
-    .card h3 { margin: 0; font-size: 1em; color: #444; }
-    .value {
-      font-weight: bold; font-size: 1.2em; color: #004488;
-      margin-top: 5px; padding: 4px 6px; border-radius: 6px; display: inline-block;
-    }
-    .note { font-size: 0.9em; color: #888; margin-top: 4px; }
-  </style>
-</head>
-<body>
-  <h1>사다리 블럭 예측 비교</h1>
-  <div id="results"></div>
+---
 
-  <script>
-    const modes = [
-      { size: 3, modes: ["3block_orig", "3block_flip_full", "3block_flip_start", "3block_flip_odd_even"] },
-      { size: 4, modes: ["4block_orig", "4block_flip_full", "4block_flip_start", "4block_flip_odd_even"] },
-      { size: 5, modes: ["5block_orig", "5block_flip_full", "5block_flip_start", "5block_flip_odd_even"] },
-      { size: 6, modes: ["6block_orig", "6block_flip_full", "6block_flip_start", "6block_flip_odd_even"] }
-    ];
+### ✅ 수정된 `index.html` (매칭순번 표시)
 
-    const modeTitles = {
-      "orig": "원본",
-      "flip_full": "대칭 전체",
-      "flip_start": "시작점 고정",
-      "flip_odd_even": "홀짝점 고정"
-    };
+```html
+<!-- ✅ 매칭순번을 카드에 함께 출력 -->
+<script>
+  function createCard(mode, data, color) {
+    const card = document.createElement("div");
+    card.className = "card";
 
-    function getModeKey(mode) {
-      if (mode.includes("flip_full")) return "flip_full";
-      if (mode.includes("flip_start")) return "flip_start";
-      if (mode.includes("flip_odd_even")) return "flip_odd_even";
-      if (mode.includes("orig")) return "orig";
-      return "";
-    }
+    const mkey = getModeKey(mode);
+    const label = document.createElement("h3");
+    label.textContent = `${modeTitles[mkey]} (회차 ${data["예측회차"]})`;
+    card.appendChild(label);
 
-    function assignColorsStrict(blocks, modesList) {
-      const colorMap = {};
-      const palette = ["#fff8c6", "#cdefff", "#e6ccff", "#d6f6e0", "#fbdada", "#ffe0cc", "#ccf2ff"];
-      const groups = [];
+    const value = document.createElement("div");
+    value.className = "value";
+    value.textContent = data["예측값"] || "❌ 없음";
+    if (color) value.style.backgroundColor = color;
+    card.appendChild(value);
 
-      for (let i = 0; i < blocks.length; i++) {
-        const modeKey = getModeKey(modesList[i]);
-        const blockStr = blocks[i]["블럭"];
-        const value = blocks[i]["예측값"];
+    const note = document.createElement("div");
+    note.className = "note";
+    note.textContent = `블럭: ${data["블럭"]}`;
+    card.appendChild(note);
 
-        let matched = false;
-        for (const g of groups) {
-          if (
-            g.mode === modeKey &&
-            value === g.value &&
-            (blockStr.startsWith(g.block) || g.block.startsWith(blockStr))
-          ) {
-            g.items.push(i);
-            matched = true;
-            break;
-          }
-        }
-        if (!matched) {
-          groups.push({ mode: modeKey, value: value, block: blockStr, items: [i] });
-        }
-      }
+    const match = document.createElement("div");
+    match.className = "note";
+    match.textContent = `매칭순번: ${data["매칭순번"]}`;
+    card.appendChild(match);
 
-      groups.forEach((g, idx) => {
-        const color = palette[idx % palette.length];
-        g.items.forEach(i => {
-          colorMap[i] = color;
-        });
-      });
-
-      return colorMap;
-    }
-
-    function createCard(mode, data, color) {
-      const card = document.createElement("div");
-      card.className = "card";
-
-      const mkey = getModeKey(mode);
-      const label = document.createElement("h3");
-      label.textContent = `${modeTitles[mkey]} (회차 ${data["예측회차"]})`;
-      card.appendChild(label);
-
-      const value = document.createElement("div");
-      value.className = "value";
-      value.textContent = data["예측값"] || "❌ 없음";
-      if (color) value.style.backgroundColor = color;
-      card.appendChild(value);
-
-      const note = document.createElement("div");
-      note.className = "note";
-      note.textContent = `블럭: ${data["블럭"]}`;
-      card.appendChild(note);
-
-      return card;
-    }
-
-    async function loadGroup(groupModes, blockSize) {
-      const container = document.createElement("div");
-      container.className = "block-group";
-
-      const heading = document.createElement("h2");
-      heading.textContent = `${blockSize}줄 블럭 예측 결과`;
-      container.appendChild(heading);
-
-      const row = document.createElement("div");
-      row.className = "row";
-
-      const results = await Promise.all(
-        groupModes.map(m => fetch(`/predict?mode=${m}`).then(res => res.json()))
-      );
-
-      const colorMap = assignColorsStrict(results, groupModes);
-
-      groupModes.forEach((mode, i) => {
-        row.appendChild(createCard(mode, results[i], colorMap[i]));
-      });
-
-      container.appendChild(row);
-      document.getElementById("results").appendChild(container);
-    }
-
-    modes.sort((a, b) => a.size - b.size);
-    modes.forEach(group => loadGroup(group.modes, group.size));
-  </script>
-</body>
-</html>
+    return card;
+  }
+</script>

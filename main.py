@@ -44,10 +44,10 @@ def find_flow_match(block, full_data):
     for i in range(len(full_data) - block_len):
         candidate = full_data[i:i+block_len]
         if candidate == block:
-            pred_index = i + block_len  # ✅ 블럭 다음줄 예측
+            pred_index = i + block_len
             pred = full_data[pred_index] if pred_index < len(full_data) else "❌ 없음"
-            return pred, ">".join(block)
-    return "❌ 없음", ">".join(block)
+            return pred, ">".join(block), i + 1  # ✅ 순번은 사람기준 1부터 시작
+    return "❌ 없음", ">".join(block), -1
 
 @app.route("/")
 def home():
@@ -57,13 +57,12 @@ def home():
 def predict():
     try:
         raw = requests.get(URL).json()
-        data = raw[-288:]  # 최신 288줄 기준
+        data = raw[-288:]
         mode = request.args.get("mode", "3block_orig")
-        round_num = int(data[0]['date_round']) + 1  # 예측 대상 회차
-
+        round_num = int(data[0]['date_round']) + 1
         size = int(mode[0])
-        recent_flow = [convert(d) for d in data[:size]][::-1]  # ✅ 최신 N줄 → 정방향 블럭
-        all_data = [convert(d) for d in data]  # 전체 데이터 변환
+        recent_flow = [convert(d) for d in data[:size]][::-1]
+        all_data = [convert(d) for d in data]
 
         if "flip_full" in mode:
             flow = flip_full(recent_flow)
@@ -74,12 +73,13 @@ def predict():
         else:
             flow = recent_flow
 
-        result, blk = find_flow_match(flow, all_data)
+        result, blk, match_index = find_flow_match(flow, all_data)
 
         return jsonify({
             "예측회차": round_num,
             "예측값": result,
-            "블럭": blk
+            "블럭": blk,
+            "매칭순번": match_index if match_index > 0 else "❌ 없음"
         })
 
     except Exception as e:
