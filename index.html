@@ -77,7 +77,7 @@
 
       const mkey = getModeKey(mode);
       const label = document.createElement("h3");
-      label.textContent = `${modeTitles[mkey]} (회차 ${data["예측회차"]})`;
+      label.textContent = `${modeTitles[mkey]} (${transformLabel[typeKey]}) (회차 ${data["예측회차"]})`;
       card.appendChild(label);
 
       const value = document.createElement("div");
