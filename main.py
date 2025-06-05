@@ -1,4 +1,4 @@
-# main.py (블럭 방향 최신 → 과거로 수정)
+# 🔧 최신줄 = 블럭의 첫 줄 (왼쪽), 상단/하단도 그 기준으로 계산되도록 수정
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from supabase import create_client, Client
@@ -39,7 +39,7 @@ def find_top3(data, block_size, rotate=False):
     if len(data) < block_size + 1:
         return {}, []
 
-    recent_block = data[0:block_size]  # 최신 → 과거
+    recent_block = data[0:block_size]  # 최신줄부터 과거방향
     if rotate:
         recent_block = rotate_block(recent_block)
 
@@ -59,16 +59,18 @@ def find_top3(data, block_size, rotate=False):
                 continue
             candidate = data[i:i+block_size]
             if candidate == transformed:
-                above = data[i - 1]
-                if above:
-                    freq[above] = freq.get(above, 0) + 1
+                # 기준은 블럭의 첫 줄 (최신줄)
+                top = data[i - 1] if i > 0 else None
+                bottom = data[i + block_size] if i + block_size < len(data) else None
+                if top:
+                    freq[top] = freq.get(top, 0) + 1
         top3 = sorted(freq.items(), key=lambda x: -x[1])[:3]
         result[name] = [{"value": k, "count": v} for k, v in top3]
 
     return result, recent_block
 
 def find_all_first_matches(data, block_sizes):
-    recent_blocks = {n: data[0:n] for n in block_sizes}  # 최신 → 과거 방향 유지
+    recent_blocks = {n: data[0:n] for n in block_sizes}
     matched_positions = {}
     results = {n: None for n in block_sizes}
 
@@ -78,7 +80,6 @@ def find_all_first_matches(data, block_sizes):
                 continue
             if any(i in matched_positions.get(s, set()) for s in block_sizes):
                 continue
-
             blk = data[i:i+size]
             if blk == recent_blocks[size]:
                 top = data[i - 1] if i > 0 else None
