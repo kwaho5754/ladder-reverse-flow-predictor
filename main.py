@@ -1,4 +1,4 @@
-# main.py (독립적 블럭 매칭 기준 반영)
+# main.py (최신 기준 아래부터 블럭 매칭 + 정확한 하단값 적용)
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from supabase import create_client, Client
@@ -58,7 +58,7 @@ def find_top3(data, block_size, rotate=False):
             candidate = data[i:i+block_size]
             if candidate == transformed:
                 top = data[i - 1] if i > 0 else None
-                bottom = data[i + block_size] if i > 0 and i + block_size < len(data) else None
+                bottom = data[i + 1] if i + 1 < len(data) else None
                 if top:
                     freq[top] = freq.get(top, 0) + 1
         top3 = sorted(freq.items(), key=lambda x: -x[1])[:3]
@@ -68,23 +68,25 @@ def find_top3(data, block_size, rotate=False):
 
 def find_all_first_matches(data, block_sizes):
     recent_blocks = {n: data[0:n] for n in block_sizes}
-    matched_positions = {}
-    results = {n: None for n in block_sizes}
+    matched = {}
+    results = {}
 
-    for i in range(1, len(data)):
-        for size in sorted(block_sizes, reverse=True):
-            if i + size >= len(data):
-                continue
-            if any(i in matched_positions.get(s, set()) for s in block_sizes):
-                continue
-
-            blk = data[i:i+size]
-            if blk == recent_blocks[size]:
-                top = data[i - 1] if i > 0 else None
-                bottom = data[i + size] if i > 0 and i + size < len(data) else None
-                results[size] = {"블럭": blk, "상단": top, "하단": bottom}
-                matched_positions[size] = {i}
-                break
+    for size in sorted(block_sizes, reverse=True):
+        recent = recent_blocks[size]
+        for i in reversed(range(1, len(data) - size)):
+            candidate = data[i:i+size]
+            if candidate == recent:
+                if size not in matched:
+                    top = data[i - 1] if i > 0 else None
+                    bottom = data[i + 1] if i + 1 < len(data) else None
+                    results[size] = {
+                        "블럭": candidate,
+                        "상단": top,
+                        "하단": bottom
+                    }
+                    matched[size] = True
+                    print(f"[매칭] {size}줄 → 위치: {i}, 상단: {top}, 하단: {bottom}, 블럭: {candidate}")
+                    break
     return {
         "3줄": results.get(3),
         "4줄": results.get(4),
