@@ -1,82 +1,160 @@
-<script>
-  fetch("/predict")
-    .then((res) => res.json())
-    .then((data) => {
-      document.getElementById("round").innerHTML = `<div class="card"><span class="label">예측 회차:</span> ${data["예측회차"]}</div>`;
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>사다리 예측 시스템</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #f4f4f4;
+      margin: 0; padding: 0;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 20px;
+      background: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h2 {
+      text-align: center;
+    }
+    .section {
+      margin-bottom: 30px;
+    }
+    .grid-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .card {
+      border: 1px solid #ddd;
+      padding: 15px;
+      background: #fafafa;
+      flex: 1;
+      min-width: 280px;
+    }
+    .label {
+      font-weight: bold;
+      margin-bottom: 10px;
+      display: block;
+      color: #333;
+    }
+    .value {
+      margin-left: 15px;
+    }
+    .divider {
+      margin: 10px 0 5px;
+      font-weight: bold;
+      color: #666;
+    }
+    .highlight {
+      background: #e6f7ff;
+      padding: 10px;
+      border-left: 4px solid #1890ff;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>사다리 예측 시스템</h2>
+    <div id="round" class="section"></div>
 
-      const showRecent = (list, targetId, title) => {
-        const html = list.map((v, i) => `<div>${i + 1} : ${v}</div>`).join("");
-        document.getElementById(targetId).innerHTML = `<div class="card"><span class="label">${title} (최신 ↓ 과거):</span> ${html}</div>`;
-      };
+    <div id="recent3" class="section"></div>
+    <div class="grid-row" id="result3"></div>
 
-      const showCombinedTop3 = (result, resultRotated, targetId) => {
-        const container = document.getElementById(targetId);
-        container.innerHTML = "";
+    <div id="recent4" class="section"></div>
+    <div class="grid-row" id="result4"></div>
 
-        const allKeys = Object.keys(result);
-        for (const key of allKeys) {
-          const card = document.createElement("div");
-          card.className = "card";
+    <div class="section highlight">
+      <h3>🔍 처음 매칭된 블럭 결과</h3>
+      <div id="first-match"></div>
+    </div>
+  </div>
 
-          const label = document.createElement("div");
-          label.className = "label";
-          label.textContent = key;
-          card.appendChild(label);
+  <script>
+    fetch("/predict")
+      .then((res) => res.json())
+      .then((data) => {
+        document.getElementById("round").innerHTML = `<div class="card"><span class="label">예측 회차:</span> ${data["예측회차"]}</div>`;
 
-          result[key]?.forEach(v => {
-            const div = document.createElement("div");
-            div.className = "value";
-            div.textContent = `${v.value} (${v.count})`;
-            card.appendChild(div);
-          });
+        const showRecent = (list, targetId, title) => {
+          const html = list.map((v, i) => `<div>${i + 1} : ${v}</div>`).join("");
+          document.getElementById(targetId).innerHTML = `<div class="card"><span class="label">${title} (최신 → 과거):</span> ${html}</div>`;
+        };
 
-          if (resultRotated[key]?.length) {
-            const divider = document.createElement("div");
-            divider.className = "divider";
-            divider.textContent = "(180도)";
-            card.appendChild(divider);
+        const showCombinedTop3 = (result, resultRotated, targetId) => {
+          const container = document.getElementById(targetId);
+          container.innerHTML = "";
 
-            resultRotated[key].forEach(v => {
+          const allKeys = Object.keys(result);
+          for (const key of allKeys) {
+            const card = document.createElement("div");
+            card.className = "card";
+
+            const label = document.createElement("div");
+            label.className = "label";
+            label.textContent = key;
+            card.appendChild(label);
+
+            result[key]?.forEach(v => {
               const div = document.createElement("div");
               div.className = "value";
               div.textContent = `${v.value} (${v.count})`;
               card.appendChild(div);
             });
+
+            if (resultRotated[key]?.length) {
+              const divider = document.createElement("div");
+              divider.className = "divider";
+              divider.textContent = "(180도)";
+              card.appendChild(divider);
+
+              resultRotated[key].forEach(v => {
+                const div = document.createElement("div");
+                div.className = "value";
+                div.textContent = `${v.value} (${v.count})`;
+                card.appendChild(div);
+              });
+            }
+
+            container.appendChild(card);
           }
+        };
 
-          container.appendChild(card);
-        }
-      };
+        const showFirstMatches = (matches) => {
+          const container = document.getElementById("first-match");
+          let html = "";
+          for (const key of ["3줄", "4줄", "5줄"]) {
+            const info = matches[key];
+            const block = (info?.["블럭"] || []).join(" → ") || "(없음)";
+            const top = info?.["상단"] || "(없음)";
+            const bottom = info?.["하단"] || "(없음)";
+            html += `
+              <div class="card">
+                <span class="label">✅ ${key} 블럭 첫 매칭</span>
+                <div>블럭: ${block}</div>
+                <div>상단값: ${top}</div>
+                <div>하단값: ${bottom}</div>
+              </div>
+            `;
+          }
+          container.innerHTML = html;
+        };
 
-      const showFirstMatches = (matches) => {
-        const container = document.getElementById("first-match");
-        let html = "";
-        for (const key of ["3줄", "4줄", "5줄"]) {
-          const info = matches[key];
-          const block = (info?.["블럭"] || []).join(" → ") || "(없음)";
-          const top = info?.["상단"] || "(없음)";
-          const bottom = info?.["하단"] || "(없음)";
-          html += `
-            <div class="card">
-              <span class="label">✅ ${key} 블럭 첫 매칭</span>
-              <div>블럭: ${block}</div>
-              <div>상단값: ${top}</div>
-              <div>하단값: ${bottom}</div>
-            </div>
-          `;
-        }
-        container.innerHTML = html;
-      };
+        showRecent(data["최근블럭3"], "recent3", "최근 3줄 블럭");
+        showCombinedTop3(data["Top3_3줄"], data["Top3_3줄_180도"], "result3");
 
-      showRecent(data["최근블럭3"], "recent3", "최근 3줄 블럭");
-      showCombinedTop3(data["Top3_3줄"], data["Top3_3줄_180도"], "result3");
+        showRecent(data["최근블럭4"], "recent4", "최근 4줄 블럭");
+        showCombinedTop3(data["Top3_4줄"], data["Top3_4줄_180도"], "result4");
 
-      showRecent(data["최근블럭4"], "recent4", "최근 4줄 블럭");
-      showCombinedTop3(data["Top3_4줄"], data["Top3_4줄_180도"], "result4");
-
-      showFirstMatches(data["처음매칭"]);
-    })
-    .catch((error) => {
-      document.body.innerHTML = `<div class="container"><div class="card">예측 데이터를 불러오는 중 오류 발생: ${error}</div></div>`;
-    });
-</script>
+        showFirstMatches(data["처음매칭"]);
+      })
+      .catch((error) => {
+        document.body.innerHTML = `<div class="container"><div class="card">예측 데이터를 불러오는 중 오류 발생: ${error}</div></div>`;
+      });
+  </script>
+</body>
+</html>
