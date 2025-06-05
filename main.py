@@ -1,4 +1,4 @@
-# main.py (독립 블럭 필터 적용 + 180도 포함)
+# main.py (첫 매칭 블럭 상단/하단값 표시 추가)
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from supabase import create_client, Client
@@ -55,18 +55,35 @@ def find_top3(data, block_size, rotate=False):
         transformed = transform(recent_block)
         freq = {}
         for i in range(1, len(data) - block_size):
-            # 독립 블럭 필터: 위/아래 존재해야 함
             if i + block_size >= len(data):
                 continue
             candidate = data[i:i+block_size]
             if candidate == transformed:
-                above = data[i-1]
+                above = data[i - 1]
                 if above:
                     freq[above] = freq.get(above, 0) + 1
         top3 = sorted(freq.items(), key=lambda x: -x[1])[:3]
         result[name] = [{"value": k, "count": v} for k, v in top3]
 
     return result, recent_block
+
+def find_first_match(data, block_size):
+    recent_block = list(reversed(data[:block_size]))
+    key = "-".join(recent_block)
+    seen = set()
+    for i in range(1, len(data) - block_size):
+        if i + block_size >= len(data):
+            continue
+        blk = data[i:i+block_size]
+        blk_key = "-".join(blk)
+        if blk_key in seen:
+            continue
+        seen.add(blk_key)
+        if blk == recent_block:
+            top = data[i - 1] if i > 0 else None
+            bottom = data[i + block_size] if i + block_size < len(data) else None
+            return {"상단": top, "하단": bottom, "블럭": blk}
+    return {"상단": None, "하단": None, "블럭": []}
 
 @app.route("/")
 def home():
@@ -86,9 +103,12 @@ def predict():
 
         result3, recent3 = find_top3(all_data, 3)
         result4, recent4 = find_top3(all_data, 4)
-
         result3_r, _ = find_top3(all_data, 3, rotate=True)
         result4_r, _ = find_top3(all_data, 4, rotate=True)
+
+        first3 = find_first_match(all_data, 3)
+        first4 = find_first_match(all_data, 4)
+        first5 = find_first_match(all_data, 5)
 
         return jsonify({
             "예측회차": round_num,
@@ -97,7 +117,12 @@ def predict():
             "Top3_3줄": result3,
             "Top3_4줄": result4,
             "Top3_3줄_180도": result3_r,
-            "Top3_4줄_180도": result4_r
+            "Top3_4줄_180도": result4_r,
+            "처음매칭": {
+                "3줄": first3,
+                "4줄": first4,
+                "5줄": first5
+            }
         })
 
     except Exception as e:

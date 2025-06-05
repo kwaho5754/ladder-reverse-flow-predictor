@@ -49,6 +49,12 @@
       font-weight: bold;
       color: #666;
     }
+    .highlight {
+      background: #e6f7ff;
+      padding: 10px;
+      border-left: 4px solid #1890ff;
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
@@ -61,6 +67,11 @@
 
     <div id="recent4" class="section"></div>
     <div class="grid-row" id="result4"></div>
+
+    <div class="section highlight">
+      <h3>🔍 처음 매칭된 블럭 결과</h3>
+      <div id="first-match"></div>
+    </div>
   </div>
 
   <script>
@@ -70,8 +81,8 @@
         document.getElementById("round").innerHTML = `<div class="card"><span class="label">예측 회차:</span> ${data["예측회차"]}</div>`;
 
         const showRecent = (list, targetId, title) => {
-          const html = list.map((v, i) => `<div>${list.length - i} : ${v}</div>`).join("");
-          document.getElementById(targetId).innerHTML = `<div class="card"><span class="label">${title} (최신 ↓ 과거):</span> ${html}</div>`;
+          const html = list.slice().reverse().map((v, i) => `<div>${i + 1} : ${v}</div>`).join("");
+          document.getElementById(targetId).innerHTML = `<div class="card"><span class="label">${title} (최신 ↑ 과거):</span> ${html}</div>`;
         };
 
         const showCombinedTop3 = (result, resultRotated, targetId) => {
@@ -95,7 +106,6 @@
               card.appendChild(div);
             });
 
-            // 180도 예측 구분선
             if (resultRotated[key]?.length) {
               const divider = document.createElement("div");
               divider.className = "divider";
@@ -114,11 +124,33 @@
           }
         };
 
+        const showFirstMatches = (matches) => {
+          const container = document.getElementById("first-match");
+          let html = "";
+          for (const key of ["3줄", "4줄", "5줄"]) {
+            const info = matches[key];
+            const block = (info["블럭"] || []).join(" → ") || "(없음)";
+            const top = info["상단"] || "(없음)";
+            const bottom = info["하단"] || "(없음)";
+            html += `
+              <div class="card">
+                <span class="label">✅ ${key} 블럭 첫 매칭</span>
+                <div>블럭: ${block}</div>
+                <div>상단값: ${top}</div>
+                <div>하단값: ${bottom}</div>
+              </div>
+            `;
+          }
+          container.innerHTML = html;
+        };
+
         showRecent(data["최근블럭3"], "recent3", "최근 3줄 블럭");
         showCombinedTop3(data["Top3_3줄"], data["Top3_3줄_180도"], "result3");
 
         showRecent(data["최근블럭4"], "recent4", "최근 4줄 블럭");
         showCombinedTop3(data["Top3_4줄"], data["Top3_4줄_180도"], "result4");
+
+        showFirstMatches(data["처음매칭"]);
       })
       .catch((error) => {
         document.body.innerHTML = `<div class="container"><div class="card">예측 데이터를 불러오는 중 오류 발생: ${error}</div></div>`;
