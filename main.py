@@ -1,77 +1,93 @@
-# ✅ main.py (3줄/4줄 완전 분리 + 독립 예측 구조)
-from flask import Flask, jsonify
-from flask_cors import CORS
-from supabase import create_client
-from dotenv import load_dotenv
 import os
+import pandas as pd
+import requests
+from flask import Flask, jsonify, send_file
+from collections import Counter
+from supabase import create_client, Client
 
-load_dotenv()
+# Supabase 환경변수
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_TABLE = os.getenv("SUPABASE_TABLE", "ladder")
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 app = Flask(__name__)
-CORS(app)
 
-supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
-TABLE = os.getenv("SUPABASE_TABLE")
+def fetch_data():
+    response = supabase.table(SUPABASE_TABLE).select("*").order("reg_date", desc=True).limit(3000).execute()
+    data = response.data
+    if not data or len(data) < 100:
+        return []
+    data_sorted = sorted(data, key=lambda x: (x["reg_date"], x["date_round"]))
+    return [row["result"] for row in data_sorted]
 
-def convert(entry):
-    side = '좌' if entry['start_point'] == 'LEFT' else '우'
-    count = str(entry['line_count'])
-    oe = '짝' if entry['odd_even'] == 'EVEN' else '홀'
-    return f"{side}{count}{oe}"
+def make_blocks(data, size):
+    return [''.join(data[i:i+size]) for i in range(len(data) - size + 1)]
 
-def reverse_name(name):
-    name = name.replace('좌', '@').replace('우', '좌').replace('@', '우')
-    name = name.replace('홀', '@').replace('짝', '홀').replace('@', '짝')
-    return name
+def analyze_blocks(data, size, directions):
+    block_result = {}
+    used_indexes = set()
 
-def flip_start(block): return [reverse_name(block[0])] + block[1:]
-def flip_odd_even(block): return [reverse_name(b) if '홀' in b or '짝' in b else b for b in block]
+    for direction in directions:
+        direction_blocks = []
 
-def find_top3(all_data, base_block):
-    results = {}
-    directions = {
-        "원본": lambda x: x,
-        "대치": lambda x: [reverse_name(i) for i in x],
-        "시작점반전": flip_start,
-        "홀짝반전": flip_odd_even
-    }
-    for name, fn in directions.items():
-        b = fn(base_block)
-        freq = {}
-        for i in range(len(all_data) - len(b)):
-            if all_data[i:i+len(b)] == b:
-                if i > 0:
-                    above = all_data[i - 1]
-                    freq[above] = freq.get(above, 0) + 1
-        results[name] = sorted(freq.items(), key=lambda x: -x[1])[:3]
-    return results
+        for i in range(len(data) - size):
+            block = tuple(data[i:i+size])
+            if direction == '원본':
+                key = block
+            elif direction == '대칭':
+                key = tuple('짝' if v == '홀' else '홀' for v in block)
+            elif direction == '시작점반전':
+                key = ('짝' if block[0] == '홀' else '홀',) + block[1:]
+            elif direction == '홀짝반전':
+                key = block[:2] + ('짝' if block[2] == '홀' else '홀',)
+
+            direction_blocks.append((key, i))
+
+        counter = Counter()
+        for blk, idx in direction_blocks:
+            if blk in [b for b, _ in direction_blocks[-1:]]:
+                if idx + size < len(data):
+                    result = data[idx + size]
+                    counter[result] += 1
+                    used_indexes.add(idx)
+
+        top3 = [x[0] for x in counter.most_common(3)]
+        block_result[direction] = {"top3": top3, "count": sum(counter.values())}
+
+    return block_result, used_indexes
+
+def combine_top3(result_dict):
+    all = sum([result["top3"] for result in result_dict.values()], [])
+    total = Counter(all)
+    return [x[0] for x in total.most_common(3)]
+
+@app.route("/")
+def index():
+    return send_file("index.html")
 
 @app.route("/predict")
 def predict():
-    try:
-        raw = supabase.table(TABLE).select("*").order("reg_date", desc=True).order("date_round", desc=True).limit(3000).execute().data
-        if not raw or len(raw) < 10:
-            return jsonify({"error": "데이터 부족"}), 500
+    data = fetch_data()
+    if len(data) < 100:
+        return jsonify({"error": "데이터 부족"})
 
-        all_data = [convert(x) for x in raw]
-        round_num = int(raw[0]['date_round']) + 1
+    latest_round = len(data)
+    recent_3 = data[-3:]
+    recent_4 = data[-4:]
 
-        # ✅ 3줄 블럭 분석 (최신순 0~2)
-        base3 = list(reversed(all_data[:3]))
-        pred3 = find_top3(all_data, base3)
+    three_result, used3 = analyze_blocks(data, 3, ['원본', '대칭', '시작점반전', '홀짝반전'])
+    four_result, used4 = analyze_blocks([v for i, v in enumerate(data) if i not in used3], 4, ['원본', '대칭', '시작점반전', '홀짝반전'])
 
-        # ✅ 4줄 블럭 분석 (단 3줄블럭과 겹치지 않도록 4줄 블럭의 시작점이 3줄 블럭 시작점과 겹치면 제거)
-        base4 = list(reversed(all_data[3:7]))
-        pred4 = find_top3(all_data, base4)
+    final_top3 = combine_top3({**three_result, **four_result})
 
-        return jsonify({
-            "예측회차": round_num,
-            "최근블럭_3줄": base3,
-            "최근블럭_4줄": base4,
-            "3줄 예측": pred3,
-            "4줄 예측": pred4
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify({
+        "latest_round": latest_round,
+        "3줄블럭": three_result,
+        "4줄블럭": four_result,
+        "최종 Top3": final_top3
+    })
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))

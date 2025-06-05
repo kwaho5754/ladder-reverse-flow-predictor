@@ -1,105 +1,62 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>사다리 예측 시스템</title>
   <style>
-    body {
-      background-color: #111;
-      color: #fff;
-      font-family: 'Pretendard', sans-serif;
-      padding: 20px;
-    }
-    h1 {
-      color: #00e0ff;
-    }
-    .section {
-      background-color: #222;
-      padding: 15px;
-      border-radius: 10px;
-      margin-bottom: 30px;
-    }
-    .section h2 {
-      color: #ffaa00;
-      margin-bottom: 10px;
-    }
-    .label {
-      color: #ccc;
-      font-weight: bold;
-    }
-    .value {
-      color: #00ff88;
-      font-size: 1.2em;
-      margin-bottom: 10px;
-    }
-    .block {
-      margin-top: 10px;
-    }
+    body { font-family: sans-serif; background: #f4f4f4; padding: 2rem; }
+    h1 { color: #333; }
+    .result-block { margin-top: 2rem; background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 0 8px #ccc; }
+    .label { font-weight: bold; color: #555; margin-top: 1rem; }
+    ul { list-style: none; padding-left: 0; }
+    li { margin: 0.5rem 0; }
   </style>
 </head>
 <body>
   <h1>사다리 예측 시스템</h1>
+  <div id="latest-round"></div>
 
-  <div id="info" class="section">
-    <h2>예측 회차</h2>
-    <div class="value" id="round">-</div>
+  <div class="result-block" id="three-block">
+    <div class="label">3줄 블럭 예측</div>
+    <ul id="three-result"></ul>
   </div>
 
-  <div class="section">
-    <h2>3줄 블럭 예측</h2>
-    <div class="label">최근 블럭:</div>
-    <div class="value" id="block3">-</div>
-    <div class="block">
-      <div class="label">[원본]</div>
-      <div class="value" id="pred3-원본">-</div>
-      <div class="label">[대치]</div>
-      <div class="value" id="pred3-대치">-</div>
-      <div class="label">[시작점반전]</div>
-      <div class="value" id="pred3-시작점반전">-</div>
-      <div class="label">[홀짝반전]</div>
-      <div class="value" id="pred3-홀짝반전">-</div>
-    </div>
+  <div class="result-block" id="four-block">
+    <div class="label">4줄 블럭 예측</div>
+    <ul id="four-result"></ul>
   </div>
 
-  <div class="section">
-    <h2>4줄 블럭 예측</h2>
-    <div class="label">최근 블럭:</div>
-    <div class="value" id="block4">-</div>
-    <div class="block">
-      <div class="label">[원본]</div>
-      <div class="value" id="pred4-원본">-</div>
-      <div class="label">[대치]</div>
-      <div class="value" id="pred4-대치">-</div>
-      <div class="label">[시작점반전]</div>
-      <div class="value" id="pred4-시작점반전">-</div>
-      <div class="label">[홀짝반전]</div>
-      <div class="value" id="pred4-홀짝반전">-</div>
-    </div>
+  <div class="result-block" id="final-top3">
+    <div class="label">최종 Top3 예측</div>
+    <ul id="top3-result"></ul>
   </div>
 
   <script>
-    async function loadData() {
+    async function fetchPrediction() {
       const res = await fetch("/predict");
       const data = await res.json();
 
-      document.getElementById("round").textContent = data["예측회차"];
-      document.getElementById("block3").textContent = data["최근블럭_3줄"].join(" - ");
-      document.getElementById("block4").textContent = data["최근블럭_4줄"].join(" - ");
+      document.getElementById("latest-round").innerText = `최근 회차: ${data.latest_round}`;
 
-      const pred3 = data["3줄 예측"];
-      const pred4 = data["4줄 예측"];
+      const render = (id, result) => {
+        const el = document.getElementById(id);
+        el.innerHTML = '';
+        for (const [key, val] of Object.entries(result)) {
+          const li = document.createElement("li");
+          li.textContent = `${key} → ${val.top3.join(", ")}`;
+          el.appendChild(li);
+        }
+      };
 
-      ["원본", "대치", "시작점반전", "홀짝반전"].forEach(key => {
-        const p3 = pred3[key]?.map(p => `${p[0]}(${p[1]})`).join(", ") || "❌ 없음";
-        const p4 = pred4[key]?.map(p => `${p[0]}(${p[1]})`).join(", ") || "❌ 없음";
+      render("three-result", data["3줄블럭"]);
+      render("four-result", data["4줄블럭"]);
 
-        document.getElementById(`pred3-${key}`).textContent = p3;
-        document.getElementById(`pred4-${key}`).textContent = p4;
-      });
+      const top3El = document.getElementById("top3-result");
+      top3El.innerHTML = data["최종 Top3"].map(x => `<li>${x}</li>`).join("");
     }
 
-    loadData();
-    setInterval(loadData, 30000); // 30초마다 자동 갱신
+    fetchPrediction();
+    setInterval(fetchPrediction, 10000);
   </script>
 </body>
 </html>
