@@ -1,104 +1,106 @@
-# ✅ 흐름 기반 점수제 예측 시스템 main.py
-from flask import Flask, jsonify, send_from_directory
-from flask_cors import CORS
-from supabase import create_client, Client
-from dotenv import load_dotenv
 import os
-from collections import Counter
-
-load_dotenv()
-
-app = Flask(__name__)
-CORS(app)
+import requests
+from collections import Counter, defaultdict
+from flask import Flask, jsonify, render_template
+from supabase import create_client
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
-SUPABASE_TABLE = os.environ.get("SUPABASE_TABLE", "ladder")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+SUPABASE_TABLE = os.environ.get("SUPABASE_TABLE")
 
-# 결과값 생성
-def convert(entry):
-    side = '좌' if entry['start_point'] == 'LEFT' else '우'
-    count = str(entry['line_count'])
-    oe = '짝' if entry['odd_even'] == 'EVEN' else '홀'
-    return f"{side}{count}{oe}"
+app = Flask(__name__)
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+def create_block(data, start, length):
+    return "-".join([row["result"] for row in data[start:start+length]])
+
+def mirror_block(block):
+    return block.replace("좌", "X").replace("우", "좌").replace("X", "우")
+
+def start_flip_block(block):
+    parts = block.split("-")
+    if not parts: return block
+    start = parts[0]
+    flipped = []
+    for p in parts:
+        if "짝" in p:
+            flipped.append(p.replace("짝", "홀"))
+        elif "홀" in p:
+            flipped.append(p.replace("홀", "짝"))
+        else:
+            flipped.append(p)
+    return "-".join(flipped)
+
+def even_odd_flip_block(block):
+    parts = block.split("-")
+    if not parts: return block
+    flipped = []
+    for p in parts:
+        if "홀" in p:
+            flipped.append(p.replace("홀", "짝"))
+        elif "짝" in p:
+            flipped.append(p.replace("짝", "홀"))
+        else:
+            flipped.append(p)
+    return "-".join(flipped)
+
+def predict_block_top3(data, block_len, skip_overlap_with=None):
+    prediction_scores = defaultdict(int)
+    recent_block = create_block(data, 0, block_len)
+
+    variants = {
+        "원본": recent_block,
+        "대칭": mirror_block(recent_block),
+        "시작반전": start_flip_block(recent_block),
+        "홀짝반전": even_odd_flip_block(recent_block)
+    }
+
+    skip_index = set()
+    if skip_overlap_with:
+        for i in range(len(data) - skip_overlap_with):
+            for j in range(skip_overlap_with):
+                skip_index.add(i + j)
+
+    for name, block in variants.items():
+        counter = Counter()
+        for i in range(1, len(data) - block_len):  # i > 0 보장
+            if skip_overlap_with and any(k in skip_index for k in range(i, i + block_len)):
+                continue
+            blk = create_block(data, i, block_len)
+            if blk == block:
+                target = data[i - 1]["result"]
+                counter[target] += 1
+
+        top3 = [item[0] for item in counter.most_common(3)]
+        for rank, val in enumerate(top3):
+            prediction_scores[val] += 3 - rank
+
+    return sorted(prediction_scores.items(), key=lambda x: -x[1])[:3]
 
 @app.route("/")
 def index():
-    return send_from_directory(os.path.dirname(__file__), "index.html")
+    return render_template("index.html")
 
 @app.route("/predict")
 def predict():
-    try:
-        raw = supabase.table(SUPABASE_TABLE).select("*") \
-            .order("reg_date", desc=True).order("date_round", desc=True).limit(3000).execute().data
+    response = supabase.table(SUPABASE_TABLE).select("*").order("id", desc=True).limit(3000).execute()
+    data = response.data[::-1]  # 최신순으로 정렬된 걸 오래된 순으로
 
-        if not raw or len(raw) < 100:
-            return jsonify({"error": "데이터 부족"}), 500
+    if len(data) < 100:
+        return jsonify({"error": "데이터 부족"})
 
-        round_num = int(raw[0]["date_round"]) + 1
-        all_data = [convert(d) for d in raw]
+    top3_5 = predict_block_top3(data, 5)
+    top3_4 = predict_block_top3(data, 4, skip_overlap_with=5)
 
-        # 최근 흐름 기준 데이터
-        recent_20 = all_data[:20]
-        recent_50 = all_data[:50]
-        recent_100 = all_data[:100]
-        total_all = all_data[::-1]  # 오래된 순
+    recent_block_5 = create_block(data, 0, 5)
+    recent_block_4 = create_block(data, 0, 4)
 
-        candidates = ["좌3짝", "우3홀", "좌4홀", "우4짝"]
-        scores = {c: 0 for c in candidates}
+    return jsonify({
+        "recent_block_5": recent_block_5,
+        "top3_5": top3_5,
+        "recent_block_4": recent_block_4,
+        "top3_4": top3_4,
+    })
 
-        # 전체 빈도
-        total_counter = Counter(total_all)
-        total_len = len(total_all)
-
-        # 최근 빈도
-        recent_counter = Counter(recent_20)
-
-        for c in candidates:
-            # 1. 전체 비중 대비 최근 급증 시 감점
-            total_ratio = total_counter[c] / total_len
-            recent_ratio = recent_counter[c] / 20 if c in recent_counter else 0
-            if recent_ratio > total_ratio * 1.8:
-                scores[c] -= 1
-            elif recent_ratio < total_ratio * 0.5:
-                scores[c] += 1  # 반등 가능성
-
-            # 2. 최근 3연속 이상 반복 시 감점
-            repeat_count = 0
-            for i in range(len(recent_20)):
-                if recent_20[i] == c:
-                    repeat_count += 1
-                    if repeat_count >= 3:
-                        scores[c] -= 1
-                        break
-                else:
-                    repeat_count = 0
-
-            # 3. 최근 50줄 안에 거의 안 나왔으면 가산
-            if recent_50.count(c) <= 2:
-                scores[c] += 1
-
-            # 4. 최근 흐름에서 갑작스러운 반전 후보면 +1
-            if recent_20.count(c) == 0:
-                scores[c] += 1
-
-        # 점수 높은 순 Top3 + 제외 1개
-        sorted_scores = sorted(scores.items(), key=lambda x: -x[1])
-        top3 = sorted_scores[:3]
-        exclude = sorted_scores[-1]
-
-        return jsonify({
-            "예측회차": round_num,
-            "Top3예측": top3,
-            "제외값": exclude,
-            "최근흐름": recent_20,
-            "점수표": scores
-        })
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT") or 5000)
-    app.run(host='0.0.0.0', port=port)
+if __name__ == "__main__":
+    app.run(debug=True)

@@ -1,57 +1,42 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>흐름 기반 사다리 예측</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>사다리 예측 시스템</title>
   <style>
-    body { font-family: 'Arial'; background: #f4f4f4; margin: 0; padding: 0; }
-    .container { max-width: 800px; margin: 20px auto; background: white; padding: 20px; box-shadow: 0 0 8px rgba(0,0,0,0.1); }
-    h2 { text-align: center; }
-    .card { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; background: #fafafa; }
-    .label { font-weight: bold; margin-bottom: 10px; display: block; }
-    .value { margin-left: 15px; }
-    .highlight { background-color: #e3f2fd; }
+    body { font-family: sans-serif; background: #f5f5f5; padding: 2rem; }
+    .section { background: white; border-radius: 8px; padding: 1rem; margin-bottom: 2rem; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    .section h2 { margin-top: 0; }
+    .block, .top3 { font-size: 1.1rem; margin-top: 0.5rem; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>흐름 기반 사다리 예측 시스템</h2>
-    <div id="round" class="card"></div>
-    <div id="top3" class="card"></div>
-    <div id="exclude" class="card"></div>
-    <div id="recent" class="card"></div>
-    <div id="score" class="card"></div>
+  <div class="section" id="section-3">
+    <h2>🔢 3줄 블럭 예측</h2>
+    <div class="block">최근 블럭: <span id="recent-3"></span></div>
+    <div class="top3">Top3 예측: <span id="top3-3"></span></div>
+  </div>
+
+  <div class="section" id="section-4">
+    <h2>🔢 4줄 블럭 예측</h2>
+    <div class="block">최근 블럭: <span id="recent-4"></span></div>
+    <div class="top3">Top3 예측: <span id="top3-4"></span></div>
   </div>
 
   <script>
-    fetch("/predict")
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById("round").innerHTML = `<span class="label">예측 회차:</span> ${data["예측회차"]}`;
+    async function fetchPrediction() {
+      const res = await fetch("/predict");
+      const data = await res.json();
 
-        const top3 = data["Top3예측"]
-          .map(v => `<div class="value">${v[0]} (${v[1]}점)</div>`)
-          .join("");
-        document.getElementById("top3").innerHTML = `<span class="label">Top3 예측값 (75% 확률)</span>${top3}`;
+      document.getElementById("recent-3").textContent = data.recent_block_3 || "-";
+      document.getElementById("recent-4").textContent = data.recent_block_4 || "-";
 
-        const exclude = data["제외값"];
-        document.getElementById("exclude").innerHTML = `<span class="label">제외값 (25% 가능성):</span><div class="value">${exclude[0]} (${exclude[1]}점)</div>`;
-
-        const recent = data["최근흐름"]
-          .map((v, i) => `<div class="value">${20 - i}회 전: ${v}</div>`)
-          .join("");
-        document.getElementById("recent").innerHTML = `<span class="label">최근 20줄 흐름:</span>${recent}`;
-
-        const score = data["점수표"];
-        const scoreHtml = Object.entries(score)
-          .map(([k, v]) => `<div class="value">${k}: ${v}점</div>`)
-          .join("");
-        document.getElementById("score").innerHTML = `<span class="label">점수표 (맥락 기반 분석):</span>${scoreHtml}`;
-      })
-      .catch(err => {
-        document.body.innerHTML += `<div class="card">오류 발생: ${err}</div>`;
-      });
+      document.getElementById("top3-3").textContent = data.top3_3?.map(v => v[0]).join(" / ") || "-";
+      document.getElementById("top3-4").textContent = data.top3_4?.map(v => v[0]).join(" / ") || "-";
+    }
+    fetchPrediction();
   </script>
 </body>
 </html>
