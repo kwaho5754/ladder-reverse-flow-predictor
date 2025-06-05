@@ -1,12 +1,18 @@
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
-import requests
+from supabase import create_client, Client
+from dotenv import load_dotenv
 import os
+
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
-URL = "https://ntry.com/data/json/games/power_ladder/recent_result.json"
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+SUPABASE_TABLE = os.environ.get("SUPABASE_TABLE", "ladder")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def convert(entry):
     side = '좌' if entry['start_point'] == 'LEFT' else '우'
@@ -14,78 +20,111 @@ def convert(entry):
     oe = '짝' if entry['odd_even'] == 'EVEN' else '홀'
     return f"{side}{count}{oe}"
 
-def parse_block(s):
-    return s[0], s[1:-1], s[-1]
-
-def flip_full(block):
-    return [
-        ('우' if s == '좌' else '좌') + c + ('짝' if o == '홀' else '홀')
-        for s, c, o in map(parse_block, block)
-    ]
+def reverse_name(name):
+    name = name.replace('좌', '@').replace('우', '좌').replace('@', '우')
+    name = name.replace('홀', '@').replace('짝', '홀').replace('@', '짝')
+    return name
 
 def flip_start(block):
-    flipped = []
-    for s, c, o in map(parse_block, block):
-        c_flip = '4' if c == '3' else '3'
-        o_flip = '홀' if o == '짝' else '짝'
-        flipped.append(s + c_flip + o_flip)
-    return flipped
+    if not block:
+        return []
+    return [reverse_name(block[0])] + block[1:]
 
 def flip_odd_even(block):
-    flipped = []
-    for s, c, o in map(parse_block, block):
-        s_flip = '우' if s == '좌' else '좌'
-        c_flip = '4' if c == '3' else '3'
-        flipped.append(s_flip + c_flip + o)
-    return flipped
+    return [reverse_name(b) if '홀' in b or '짝' in b else b for b in block]
 
-# ✅ 최근 매칭된 블럭 기준으로 "위줄" 예측값 반환
-def find_flow_match(block, full_data):
-    block_len = len(block)
-    for i in reversed(range(len(full_data) - block_len)):
-        candidate = full_data[i:i+block_len]
-        if candidate == block:
-            pred_index = i - 1
-            pred = full_data[pred_index] if pred_index >= 0 else "❌ 없음"
-            return pred, ">".join(block), i + 1
-    return "❌ 없음", ">".join(block), -1
+def rotate_180(block):
+    return list(reversed([reverse_name(b) for b in block]))
 
 @app.route("/")
 def home():
-    return send_file("index.html")
+    return send_from_directory(os.path.dirname(__file__), "index.html")
 
 @app.route("/predict")
 def predict():
     try:
-        raw = requests.get(URL).json()
-        data = raw[-288:]
-        mode = request.args.get("mode", "3block_orig")
-        round_num = int(data[0]['date_round']) + 1
-        size = int(mode[0])
-        recent_flow = [convert(d) for d in data[:size]]  # ✅ 더 이상 뒤집지 않음
-        all_data = [convert(d) for d in data]
+        size = 5
+        raw = supabase.table(SUPABASE_TABLE).select("*") \
+            .order("reg_date", desc=True).order("date_round", desc=True).limit(3000).execute().data
 
-        if "flip_full" in mode:
-            flow = flip_full(recent_flow)
-        elif "flip_start" in mode:
-            flow = flip_start(recent_flow)
-        elif "flip_odd_even" in mode:
-            flow = flip_odd_even(recent_flow)
-        else:
-            flow = recent_flow
+        if not raw or len(raw) < size + 3:
+            return jsonify({"error": "데이터 부족"}), 500
 
-        result, blk, match_index = find_flow_match(flow, all_data)
+        round_num = int(raw[0]["date_round"]) + 1
+        all_data = [convert(d) for d in raw]
+
+        recent_block = all_data[:size]
+        base_block = recent_block[-3:]
+
+        directions = {
+            "원본": lambda b: b,
+            "대치": lambda b: [reverse_name(x) for x in b],
+            "시작점반전": flip_start,
+            "홈작반전": flip_odd_even,
+        }
+
+        top_predictions = {}
+        total_freq = {}
+        reverse_total_freq = {}
+        dir_counts = {}
+
+        for name, transform in directions.items():
+            transformed = transform(base_block)
+            freq = {}
+            for i in range(3, len(all_data) - 3):
+                candidate = all_data[i:i+3]
+                if candidate == transformed:
+                    above = all_data[i-1] if i > 0 else None
+                    if above:
+                        freq[above] = freq.get(above, 0) + 1
+            top3 = sorted(freq.items(), key=lambda x: -x[1])[:3]
+            top_predictions[name] = [{"value": k, "count": v} for k, v in top3]
+            for k, v in freq.items():
+                total_freq[k] = total_freq.get(k, 0) + v
+                dir_counts[k] = dir_counts.get(k, 0) + 1
+
+        for name, transform in directions.items():
+            transformed = transform(base_block)
+            rotated = list(reversed([reverse_name(b) for b in transformed]))
+            freq = {}
+            for i in range(3, len(all_data) - 3):
+                candidate = all_data[i:i+3]
+                if candidate == rotated:
+                    below = all_data[i+3] if i+3 < len(all_data) else None
+                    if below:
+                        freq[below] = freq.get(below, 0) + 1
+            top3 = sorted(freq.items(), key=lambda x: -x[1])[:3]
+            label = f"{name}(180도)"
+            top_predictions[label] = [{"value": k, "count": v} for k, v in top3]
+            for k, v in freq.items():
+                reverse_total_freq[k] = reverse_total_freq.get(k, 0) + v
+                dir_counts[k] = dir_counts.get(k, 0) + 1
+
+        total_sorted = sorted(total_freq.items(), key=lambda x: -x[1])
+        top_predictions["Top3 합산"] = [{"value": k, "count": v} for k, v in total_sorted[:3]]
+
+        reverse_total_sorted = sorted(reverse_total_freq.items(), key=lambda x: -x[1])
+        top_predictions["Top3 합산(180도)"] = [{"value": k, "count": v} for k, v in reverse_total_sorted[:3]]
+
+        # 각 방향에서 모두 나온 값과 해당 목록을 구할 경우
+        intersection = {}
+        for k in total_freq:
+            if k in reverse_total_freq:
+                intersection[k] = total_freq[k] + reverse_total_freq[k]
+        top_predictions["협층 Top3"] = sorted([{"value": k, "count": v} for k, v in intersection.items()], key=lambda x: -x["count"])[:3]
+
+        weighted = sorted([{"value": k, "count": v} for k, v in dir_counts.items()], key=lambda x: -x["count"])[:3]
+        top_predictions["가용치 Top3"] = weighted
 
         return jsonify({
             "예측회차": round_num,
-            "예측값": result,
-            "블럭": blk,
-            "매칭순번": match_index if match_index > 0 else "❌ 없음"
+            "최근블랙": list(reversed(recent_block)),
+            "Top3": top_predictions
         })
 
     except Exception as e:
-        return jsonify({"error": str(e)})
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT") or 5000)
     app.run(host='0.0.0.0', port=port)
