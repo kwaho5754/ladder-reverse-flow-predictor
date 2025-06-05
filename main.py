@@ -1,4 +1,4 @@
-# main.py (180도 회전 블럭 추가)
+# main.py (독립 블럭 필터 적용 + 180도 포함)
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from supabase import create_client, Client
@@ -54,10 +54,13 @@ def find_top3(data, block_size, rotate=False):
     for name, transform in directions.items():
         transformed = transform(recent_block)
         freq = {}
-        for i in range(block_size, len(data) - block_size):
+        for i in range(1, len(data) - block_size):
+            # 독립 블럭 필터: 위/아래 존재해야 함
+            if i + block_size >= len(data):
+                continue
             candidate = data[i:i+block_size]
             if candidate == transformed:
-                above = data[i-1] if i > 0 else None
+                above = data[i-1]
                 if above:
                     freq[above] = freq.get(above, 0) + 1
         top3 = sorted(freq.items(), key=lambda x: -x[1])[:3]
@@ -103,4 +106,3 @@ def predict():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT") or 5000)
     app.run(host='0.0.0.0', port=port)
-    
