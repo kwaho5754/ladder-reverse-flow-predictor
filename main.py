@@ -1,4 +1,4 @@
-# main.py (첫 매칭 블럭 상단/하단값 표시 추가)
+# main.py (긴 줄수 우선 매칭 구조 적용)
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from supabase import create_client, Client
@@ -67,23 +67,30 @@ def find_top3(data, block_size, rotate=False):
 
     return result, recent_block
 
-def find_first_match(data, block_size):
-    recent_block = list(reversed(data[:block_size]))
-    key = "-".join(recent_block)
-    seen = set()
-    for i in range(1, len(data) - block_size):
-        if i + block_size >= len(data):
-            continue
-        blk = data[i:i+block_size]
-        blk_key = "-".join(blk)
-        if blk_key in seen:
-            continue
-        seen.add(blk_key)
-        if blk == recent_block:
-            top = data[i - 1] if i > 0 else None
-            bottom = data[i + block_size] if i + block_size < len(data) else None
-            return {"상단": top, "하단": bottom, "블럭": blk}
-    return {"상단": None, "하단": None, "블럭": []}
+def find_all_first_matches(data, block_sizes):
+    recent_blocks = {n: list(reversed(data[:n])) for n in block_sizes}
+    matched_positions = {}
+    results = {n: None for n in block_sizes}
+
+    for i in range(1, len(data)):
+        for size in sorted(block_sizes, reverse=True):  # 긴 줄수 우선
+            if i + size >= len(data):
+                continue
+            if any(i in matched_positions.get(s, set()) for s in block_sizes):
+                continue  # 이미 긴 블럭에 의해 매칭된 위치는 스킵
+
+            blk = data[i:i+size]
+            if blk == recent_blocks[size]:
+                top = data[i - 1] if i > 0 else None
+                bottom = data[i + size] if i + size < len(data) else None
+                results[size] = {"블럭": blk, "상단": top, "하단": bottom}
+                matched_positions[size] = {i}
+                break
+    return {
+        "3줄": results.get(3),
+        "4줄": results.get(4),
+        "5줄": results.get(5)
+    }
 
 @app.route("/")
 def home():
@@ -106,9 +113,7 @@ def predict():
         result3_r, _ = find_top3(all_data, 3, rotate=True)
         result4_r, _ = find_top3(all_data, 4, rotate=True)
 
-        first3 = find_first_match(all_data, 3)
-        first4 = find_first_match(all_data, 4)
-        first5 = find_first_match(all_data, 5)
+        first_matches = find_all_first_matches(all_data, [3, 4, 5])
 
         return jsonify({
             "예측회차": round_num,
@@ -118,11 +123,7 @@ def predict():
             "Top3_4줄": result4,
             "Top3_3줄_180도": result3_r,
             "Top3_4줄_180도": result4_r,
-            "처음매칭": {
-                "3줄": first3,
-                "4줄": first4,
-                "5줄": first5
-            }
+            "처음매칭": first_matches
         })
 
     except Exception as e:
