@@ -1,4 +1,4 @@
-# main.py (최신 기준 아래부터 블럭 매칭 + 정확한 하단값 적용)
+# ✅ 최종 수정본 main.py
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from supabase import create_client, Client
@@ -58,7 +58,6 @@ def find_top3(data, block_size, rotate=False):
             candidate = data[i:i+block_size]
             if candidate == transformed:
                 top = data[i - 1] if i > 0 else None
-                bottom = data[i + 1] if i + 1 < len(data) else None
                 if top:
                     freq[top] = freq.get(top, 0) + 1
         top3 = sorted(freq.items(), key=lambda x: -x[1])[:3]
@@ -68,25 +67,26 @@ def find_top3(data, block_size, rotate=False):
 
 def find_all_first_matches(data, block_sizes):
     recent_blocks = {n: data[0:n] for n in block_sizes}
-    matched = {}
+    used_positions = set()
     results = {}
 
     for size in sorted(block_sizes, reverse=True):
         recent = recent_blocks[size]
         for i in reversed(range(1, len(data) - size)):
+            if any(pos in used_positions for pos in range(i, i + size)):
+                continue  # 이미 사용된 위치와 겹치면 skip
             candidate = data[i:i+size]
             if candidate == recent:
-                if size not in matched:
-                    top = data[i - 1] if i > 0 else None
-                    bottom = data[i + 1] if i + 1 < len(data) else None
-                    results[size] = {
-                        "블럭": candidate,
-                        "상단": top,
-                        "하단": bottom
-                    }
-                    matched[size] = True
-                    print(f"[매칭] {size}줄 → 위치: {i}, 상단: {top}, 하단: {bottom}, 블럭: {candidate}")
-                    break
+                top = data[i - 1] if i > 0 else None
+                bottom = data[i + size] if i + size < len(data) else None
+                results[size] = {
+                    "블럭": candidate,
+                    "상단": top,
+                    "하단": bottom,
+                    "순번": i + 1
+                }
+                used_positions.update(range(i, i + size))  # 블럭 범위 저장
+                break
     return {
         "3줄": results.get(3),
         "4줄": results.get(4),
@@ -114,7 +114,7 @@ def predict():
         result3_r, _ = find_top3(all_data, 3, rotate=True)
         result4_r, _ = find_top3(all_data, 4, rotate=True)
 
-        first_matches = find_all_first_matches(all_data, [3, 4, 5])
+        first_matches = find_all_first_matches(all_data, [5, 4, 3])
 
         return jsonify({
             "예측회차": round_num,
