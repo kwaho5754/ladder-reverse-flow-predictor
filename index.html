@@ -44,6 +44,11 @@
     .value {
       margin-left: 15px;
     }
+    .divider {
+      margin: 10px 0 5px;
+      font-weight: bold;
+      color: #666;
+    }
   </style>
 </head>
 <body>
@@ -52,16 +57,10 @@
     <div id="round" class="section"></div>
 
     <div id="recent3" class="section"></div>
-    <div class="section">
-      <div class="grid-row" id="result3"></div>
-      <div class="grid-row" id="result3r"></div>
-    </div>
+    <div class="grid-row" id="result3"></div>
 
     <div id="recent4" class="section"></div>
-    <div class="section">
-      <div class="grid-row" id="result4"></div>
-      <div class="grid-row" id="result4r"></div>
-    </div>
+    <div class="grid-row" id="result4"></div>
   </div>
 
   <script>
@@ -75,33 +74,51 @@
           document.getElementById(targetId).innerHTML = `<div class="card"><span class="label">${title} (최신 ↓ 과거):</span> ${html}</div>`;
         };
 
-        const showTop3 = (result, targetId) => {
+        const showCombinedTop3 = (result, resultRotated, targetId) => {
           const container = document.getElementById(targetId);
           container.innerHTML = "";
-          for (const [key, values] of Object.entries(result)) {
+
+          const allKeys = Object.keys(result);
+          for (const key of allKeys) {
             const card = document.createElement("div");
             card.className = "card";
+
             const label = document.createElement("div");
             label.className = "label";
             label.textContent = key;
             card.appendChild(label);
-            values.forEach(v => {
-              const val = document.createElement("div");
-              val.className = "value";
-              val.textContent = `${v.value} (${v.count})`;
-              card.appendChild(val);
+
+            result[key]?.forEach(v => {
+              const div = document.createElement("div");
+              div.className = "value";
+              div.textContent = `${v.value} (${v.count})`;
+              card.appendChild(div);
             });
+
+            // 180도 예측 구분선
+            if (resultRotated[key]?.length) {
+              const divider = document.createElement("div");
+              divider.className = "divider";
+              divider.textContent = "(180도)";
+              card.appendChild(divider);
+
+              resultRotated[key].forEach(v => {
+                const div = document.createElement("div");
+                div.className = "value";
+                div.textContent = `${v.value} (${v.count})`;
+                card.appendChild(div);
+              });
+            }
+
             container.appendChild(card);
           }
         };
 
         showRecent(data["최근블럭3"], "recent3", "최근 3줄 블럭");
-        showTop3(data["Top3_3줄"], "result3");
-        showTop3(data["Top3_3줄_180도"], "result3r");
+        showCombinedTop3(data["Top3_3줄"], data["Top3_3줄_180도"], "result3");
 
         showRecent(data["최근블럭4"], "recent4", "최근 4줄 블럭");
-        showTop3(data["Top3_4줄"], "result4");
-        showTop3(data["Top3_4줄_180도"], "result4r");
+        showCombinedTop3(data["Top3_4줄"], data["Top3_4줄_180도"], "result4");
       })
       .catch((error) => {
         document.body.innerHTML = `<div class="container"><div class="card">예측 데이터를 불러오는 중 오류 발생: ${error}</div></div>`;
