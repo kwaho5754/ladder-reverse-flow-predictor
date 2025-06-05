@@ -124,20 +124,35 @@
           }
         };
 
-        const showFirstMatches = (matches) => {
+        const showFirstMatches = (matches, matchesRotated) => {
           const container = document.getElementById("first-match");
           let html = "";
           for (const key of ["3줄", "4줄", "5줄"]) {
             const info = matches[key];
+            const infoR = matchesRotated[key];
+
             const block = (info?.["블럭"] || []).join(" → ") || "(없음)";
             const top = info?.["상단"] || "(없음)";
             const bottom = info?.["하단"] || "(없음)";
+
+            const blockR = (infoR?.["블럭"] || []).join(" → ") || "(없음)";
+            const topR = infoR?.["상단"] || "(없음)";
+            const bottomR = infoR?.["하단"] || "(없음)";
+
             html += `
-              <div class="card">
-                <span class="label">✅ ${key} 블럭 첫 매칭</span>
-                <div>블럭: ${block}</div>
-                <div>상단값: ${top}</div>
-                <div>하단값: ${bottom}</div>
+              <div class="grid-row">
+                <div class="card">
+                  <span class="label">✅ ${key} 블럭 첫 매칭</span>
+                  <div>블럭: ${block}</div>
+                  <div>상단값: ${top}</div>
+                  <div>하단값: ${bottom}</div>
+                </div>
+                <div class="card">
+                  <span class="label">🔄 ${key} 블럭 180도 매칭</span>
+                  <div>블럭: ${blockR}</div>
+                  <div>상단값: ${topR}</div>
+                  <div>하단값: ${bottomR}</div>
+                </div>
               </div>
             `;
           }
@@ -150,7 +165,7 @@
         showRecent(data["최근블럭4"], "recent4", "최근 4줄 블럭");
         showCombinedTop3(data["Top3_4줄"], data["Top3_4줄_180도"], "result4");
 
-        showFirstMatches(data["처음매칭"]);
+        showFirstMatches(data["처음매칭"], data["처음매칭_180도"]);
       })
       .catch((error) => {
         document.body.innerHTML = `<div class="container"><div class="card">예측 데이터를 불러오는 중 오류 발생: ${error}</div></div>`;

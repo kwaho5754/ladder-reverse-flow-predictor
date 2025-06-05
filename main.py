@@ -65,15 +65,17 @@ def find_top3(data, block_size, rotate=False):
 
     return result, recent_block
 
-def find_all_first_matches(data, block_sizes):
+def find_all_first_matches(data, block_sizes, rotate=False):
     recent_blocks = {n: data[0:n] for n in block_sizes}
+    if rotate:
+        recent_blocks = {n: rotate_block(data[0:n]) for n in block_sizes}
+
     used_positions = set()
     results = {}
 
     for size in sorted(block_sizes, reverse=True):
         recent = recent_blocks[size]
         for i in range(1, len(data) - size):
-            # 블럭 범위가 겹치면 스킵
             if any(pos in used_positions for pos in range(i, i + size)):
                 continue
             candidate = data[i:i+size]
@@ -84,7 +86,7 @@ def find_all_first_matches(data, block_sizes):
                     "블럭": candidate,
                     "상단": top,
                     "하단": bottom,
-                    "순번": i + 1  # 1부터 시작하는 사람 시선 기준
+                    "순번": i + 1
                 }
                 used_positions.update(range(i, i + size))
                 break
@@ -116,6 +118,7 @@ def predict():
         result4_r, _ = find_top3(all_data, 4, rotate=True)
 
         first_matches = find_all_first_matches(all_data, [5, 4, 3])
+        first_matches_r = find_all_first_matches(all_data, [5, 4, 3], rotate=True)
 
         return jsonify({
             "예측회차": round_num,
@@ -125,7 +128,8 @@ def predict():
             "Top3_4줄": result4,
             "Top3_3줄_180도": result3_r,
             "Top3_4줄_180도": result4_r,
-            "처음매칭": first_matches
+            "처음매칭": first_matches,
+            "처음매칭_180도": first_matches_r
         })
 
     except Exception as e:
