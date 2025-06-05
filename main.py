@@ -1,8 +1,11 @@
-# main.py (3줄/4줄 블럭 완전 독립 구조)
+# main.py (load_dotenv 포함, 3줄/4줄 블럭 완전 독립 구조)
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from supabase import create_client, Client
+from dotenv import load_dotenv
 import os
+
+load_dotenv()  # ✅ .env 환경변수 로딩 추가
 
 app = Flask(__name__)
 CORS(app)
