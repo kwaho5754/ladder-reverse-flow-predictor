@@ -44,17 +44,16 @@
     .value {
       margin-left: 15px;
     }
-    .highlight {
-      background: #e3f2fd;
-    }
   </style>
 </head>
 <body>
   <div class="container">
     <h2>사다리 예측 시스템</h2>
     <div id="round" class="section"></div>
-    <div id="recent" class="section"></div>
-    <div id="predictions" class="section"></div>
+    <div id="recent3" class="section"></div>
+    <div id="result3" class="section"></div>
+    <div id="recent4" class="section"></div>
+    <div id="result4" class="section"></div>
   </div>
 
   <script>
@@ -63,68 +62,41 @@
       .then((data) => {
         document.getElementById("round").innerHTML = `<div class="card"><span class="label">예측 회차:</span> ${data["예측회차"]}</div>`;
 
-        const recentBlock = data["최근블럭"];
-        const recentHtml = recentBlock.map((v, i) => `<div>${recentBlock.length - i} : ${v}</div>`).join("");
-        document.getElementById("recent").innerHTML = `<div class="card"><span class="label">최근 블럭 (최신 ↓ 과거):</span> ${recentHtml}</div>`;
-
-        const predictions = data["Top3"];
-        const container = document.getElementById("predictions");
-
-        const categories = {
-          "Top3 그룹": ["Top3 합산", "Top3 합산(180도)", "교집합 Top3", "가중치 Top3"],
-          "흐름 그룹": ["흐름 기반 Top3", "유사 블럭 Top3"]
+        const showRecent = (list, targetId, title) => {
+          const html = list.map((v, i) => `<div>${list.length - i} : ${v}</div>`).join("");
+          document.getElementById(targetId).innerHTML = `<div class="card"><span class="label">${title} (최신 ↓ 과거):</span> ${html}</div>`;
         };
 
-        for (const [groupName, keys] of Object.entries(categories)) {
+        const showTop3 = (result, targetId) => {
+          const container = document.getElementById(targetId);
           const row = document.createElement("div");
           row.className = "grid-row";
-
-          keys.forEach((key) => {
-            if (predictions[key]) {
-              const card = document.createElement("div");
-              card.className = "card";
-              const title = document.createElement("div");
-              title.className = "label";
-              title.textContent = key;
-              const list = predictions[key].map((v) => `<div class="value">${v.value} (${v.count})</div>`).join("");
-              card.appendChild(title);
-              card.innerHTML += list;
-              row.appendChild(card);
-            }
-          });
-
+          for (const [key, values] of Object.entries(result)) {
+            const card = document.createElement("div");
+            card.className = "card";
+            const label = document.createElement("div");
+            label.className = "label";
+            label.textContent = key;
+            card.appendChild(label);
+            values.forEach(v => {
+              const val = document.createElement("div");
+              val.className = "value";
+              val.textContent = `${v.value} (${v.count})`;
+              card.appendChild(val);
+            });
+            row.appendChild(card);
+          }
           container.appendChild(row);
-        }
-
-        // ✅ 예측 Top3 기반 통계 출력
-        const topStats = data["Top3분석"];
-        const row = document.createElement("div");
-        row.className = "grid-row";
-
-        const makeCard = (title, items) => {
-          const card = document.createElement("div");
-          card.className = "card highlight";
-          const label = document.createElement("div");
-          label.className = "label";
-          label.textContent = title;
-          card.appendChild(label);
-          items.forEach(([k, v]) => {
-            const div = document.createElement("div");
-            div.className = "value";
-            div.textContent = `${k}: ${v}`;
-            card.appendChild(div);
-          });
-          return card;
         };
 
-        row.appendChild(makeCard("시작점", [["좌", topStats["좌"]], ["우", topStats["우"]]]));
-        row.appendChild(makeCard("줄 수", [["3줄", topStats["3줄"]], ["4줄", topStats["4줄"]]]));
-        row.appendChild(makeCard("홀짝", [["홀", topStats["홀"]], ["짝", topStats["짝"]]]));
+        showRecent(data["최근블럭3"], "recent3", "최근 3줄 블럭");
+        showTop3(data["Top3_3줄"], "result3");
 
-        container.appendChild(row);
+        showRecent(data["최근블럭4"], "recent4", "최근 4줄 블럭");
+        showTop3(data["Top3_4줄"], "result4");
       })
       .catch((error) => {
-        document.getElementById("predictions").innerHTML = `<div class="card">예측 데이터를 불러오는 중 오류 발생: ${error}</div>`;
+        document.body.innerHTML = `<div class="container"><div class="card">예측 데이터를 불러오는 중 오류 발생: ${error}</div></div>`;
       });
   </script>
 </body>
