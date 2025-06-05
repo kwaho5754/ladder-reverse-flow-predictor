@@ -135,14 +135,17 @@
             const block = (info?.["블럭"] || []).join(" → ") || "(없음)";
             const top = info?.["상단"] || "(없음)";
             const bottom = info?.["하단"] || "(없음)";
+            const order = info?.["순번"] || "(없음)";
 
             const blockR = (infoR?.["블럭"] || []).join(" → ") || "(없음)";
             const topR = infoR?.["상단"] || "(없음)";
             const bottomR = infoR?.["하단"] || "(없음)";
+            const orderR = infoR?.["순번"] || "(없음)";
 
             const blockS = (infoS?.["블럭"] || []).join(" → ") || "(없음)";
             const topS = infoS?.["상단"] || "(없음)";
             const bottomS = infoS?.["하단"] || "(없음)";
+            const orderS = infoS?.["순번"] || "(없음)";
 
             html += `
               <div class="grid-row">
@@ -151,18 +154,21 @@
                   <div>블럭: ${block}</div>
                   <div>상단값: ${top}</div>
                   <div>하단값: ${bottom}</div>
+                  <div>순번: ${order}</div>
                 </div>
                 <div class="card">
                   <span class="label">🔄 ${key} 블럭 180도 매칭</span>
                   <div>블럭: ${blockR}</div>
                   <div>상단값: ${topR}</div>
                   <div>하단값: ${bottomR}</div>
+                  <div>순번: ${orderR}</div>
                 </div>
                 <div class="card">
                   <span class="label">🪞 ${key} 블럭 대칭 매칭</span>
                   <div>블럭: ${blockS}</div>
                   <div>상단값: ${topS}</div>
                   <div>하단값: ${bottomS}</div>
+                  <div>순번: ${orderS}</div>
                 </div>
               </div>
             `;
