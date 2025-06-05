@@ -4,10 +4,12 @@ import json
 import requests
 from collections import Counter
 from flask import Flask, jsonify, render_template
+from flask_cors import CORS
 from datetime import datetime
 from supabase import create_client, Client
 
 app = Flask(__name__)
+CORS(app)
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
