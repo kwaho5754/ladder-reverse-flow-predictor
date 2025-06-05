@@ -84,8 +84,17 @@ def find_all_first_matches(data, block_sizes, rotate=False, transform=None):
             if candidate == recent:
                 top = data[i - 1] if i > 0 else None
                 bottom = data[i + size] if i + size < len(data) else None
+
+                # 👉 매칭 블럭 출력용 처리
+                if rotate:
+                    display_block = rotate_block(candidate)
+                elif transform:
+                    display_block = transform(candidate)
+                else:
+                    display_block = candidate
+
                 results[size] = {
-                    "블럭": candidate,
+                    "블럭": display_block,
                     "상단": top,
                     "하단": bottom,
                     "순번": i + 1
