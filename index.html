@@ -50,10 +50,18 @@
   <div class="container">
     <h2>사다리 예측 시스템</h2>
     <div id="round" class="section"></div>
+
     <div id="recent3" class="section"></div>
-    <div id="result3" class="section"></div>
+    <div class="section">
+      <div class="grid-row" id="result3"></div>
+      <div class="grid-row" id="result3r"></div>
+    </div>
+
     <div id="recent4" class="section"></div>
-    <div id="result4" class="section"></div>
+    <div class="section">
+      <div class="grid-row" id="result4"></div>
+      <div class="grid-row" id="result4r"></div>
+    </div>
   </div>
 
   <script>
@@ -69,8 +77,7 @@
 
         const showTop3 = (result, targetId) => {
           const container = document.getElementById(targetId);
-          const row = document.createElement("div");
-          row.className = "grid-row";
+          container.innerHTML = "";
           for (const [key, values] of Object.entries(result)) {
             const card = document.createElement("div");
             card.className = "card";
@@ -84,16 +91,17 @@
               val.textContent = `${v.value} (${v.count})`;
               card.appendChild(val);
             });
-            row.appendChild(card);
+            container.appendChild(card);
           }
-          container.appendChild(row);
         };
 
         showRecent(data["최근블럭3"], "recent3", "최근 3줄 블럭");
         showTop3(data["Top3_3줄"], "result3");
+        showTop3(data["Top3_3줄_180도"], "result3r");
 
         showRecent(data["최근블럭4"], "recent4", "최근 4줄 블럭");
         showTop3(data["Top3_4줄"], "result4");
+        showTop3(data["Top3_4줄_180도"], "result4r");
       })
       .catch((error) => {
         document.body.innerHTML = `<div class="container"><div class="card">예측 데이터를 불러오는 중 오류 발생: ${error}</div></div>`;

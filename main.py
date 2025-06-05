@@ -1,11 +1,11 @@
-# main.py (load_dotenv 포함, 3줄/4줄 블럭 완전 독립 구조)
+# main.py (180도 회전 블럭 추가)
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from supabase import create_client, Client
 from dotenv import load_dotenv
 import os
 
-load_dotenv()  # ✅ .env 환경변수 로딩 추가
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
@@ -32,11 +32,17 @@ def flip_start(block):
 def flip_odd_even(block):
     return [reverse_name(b) if '홀' in b or '짝' in b else b for b in block]
 
-def find_top3(data, block_size):
+def rotate_block(block):
+    return list(reversed([reverse_name(b) for b in block]))
+
+def find_top3(data, block_size, rotate=False):
     if len(data) < block_size + 1:
         return {}, []
 
     recent_block = list(reversed(data[:block_size]))
+    if rotate:
+        recent_block = rotate_block(recent_block)
+
     directions = {
         "원본": lambda b: b,
         "대칭": lambda b: [reverse_name(x) for x in b],
@@ -78,12 +84,17 @@ def predict():
         result3, recent3 = find_top3(all_data, 3)
         result4, recent4 = find_top3(all_data, 4)
 
+        result3_r, _ = find_top3(all_data, 3, rotate=True)
+        result4_r, _ = find_top3(all_data, 4, rotate=True)
+
         return jsonify({
             "예측회차": round_num,
             "최근블럭3": recent3,
             "최근블럭4": recent4,
             "Top3_3줄": result3,
-            "Top3_4줄": result4
+            "Top3_4줄": result4,
+            "Top3_3줄_180도": result3_r,
+            "Top3_4줄_180도": result4_r
         })
 
     except Exception as e:
@@ -92,3 +103,4 @@ def predict():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT") or 5000)
     app.run(host='0.0.0.0', port=port)
+    
