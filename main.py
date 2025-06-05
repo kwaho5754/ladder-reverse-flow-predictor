@@ -1,4 +1,4 @@
-# ✅ 최종 수정본 main.py
+# ✅ 완전 수정된 main.py
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from supabase import create_client, Client
@@ -72,9 +72,10 @@ def find_all_first_matches(data, block_sizes):
 
     for size in sorted(block_sizes, reverse=True):
         recent = recent_blocks[size]
-        for i in reversed(range(1, len(data) - size)):
+        for i in range(1, len(data) - size):
+            # 블럭 범위가 겹치면 스킵
             if any(pos in used_positions for pos in range(i, i + size)):
-                continue  # 이미 사용된 위치와 겹치면 skip
+                continue
             candidate = data[i:i+size]
             if candidate == recent:
                 top = data[i - 1] if i > 0 else None
@@ -83,9 +84,9 @@ def find_all_first_matches(data, block_sizes):
                     "블럭": candidate,
                     "상단": top,
                     "하단": bottom,
-                    "순번": i + 1
+                    "순번": i + 1  # 1부터 시작하는 사람 시선 기준
                 }
-                used_positions.update(range(i, i + size))  # 블럭 범위 저장
+                used_positions.update(range(i, i + size))
                 break
     return {
         "3줄": results.get(3),
