@@ -2,103 +2,55 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>사다리 블럭 예측</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>흐름 기반 사다리 예측</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 2em;
-      background-color: #f0f0f0;
-    }
-    .container {
-      background: #fff;
-      padding: 2em;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      max-width: 1000px;
-      margin: auto;
-      text-align: center;
-    }
-    h1 {
-      color: #333;
-    }
-    .recent-block {
-      margin-top: 1em;
-      font-size: 1.1em;
-      color: #555;
-    }
-    .cards {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-around;
-    }
-    .card {
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 1em;
-      margin: 1em;
-      background: #fafafa;
-      flex: 1;
-      min-width: 250px;
-    }
-    .card h3 {
-      margin-bottom: 0.5em;
-    }
-    .divider {
-      margin-top: 3em;
-      font-size: 1.2em;
-      font-weight: bold;
-      color: #444;
-      text-align: center;
-    }
+    body { font-family: 'Arial'; background: #f4f4f4; margin: 0; padding: 0; }
+    .container { max-width: 800px; margin: 20px auto; background: white; padding: 20px; box-shadow: 0 0 8px rgba(0,0,0,0.1); }
+    h2 { text-align: center; }
+    .card { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; background: #fafafa; }
+    .label { font-weight: bold; margin-bottom: 10px; display: block; }
+    .value { margin-left: 15px; }
+    .highlight { background-color: #e3f2fd; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>📊 사다리 예측 시스템</h1>
-    <div id="round">불러오는 중...</div>
-    <div class="recent-block" id="recentBlock">최근 블랙: ...</div>
-    <div class="cards" id="predictions"></div>
-
-    <div class="divider">🔁 180도 회전 예측 결과</div>
-    <div class="cards" id="reversePredictions"></div>
-
-    <div class="divider">🔹 추가 Top3 예측 결과</div>
-    <div class="cards" id="extraPredictions"></div>
+    <h2>흐름 기반 사다리 예측 시스템</h2>
+    <div id="round" class="card"></div>
+    <div id="top3" class="card"></div>
+    <div id="exclude" class="card"></div>
+    <div id="recent" class="card"></div>
+    <div id="score" class="card"></div>
   </div>
 
   <script>
     fetch("/predict")
       .then(res => res.json())
       .then(data => {
-        document.getElementById("round").innerText = `예측 회차: ${data["예측회차"]}`;
-        const recentBlock = data["최근블럭"]?.join(" → ") || "없음";
-        document.getElementById("recentBlock").innerText = `최근 블랙: ${recentBlock}`;
+        document.getElementById("round").innerHTML = `<span class="label">예측 회차:</span> ${data["예측회차"]}`;
 
-        const container = document.getElementById("predictions");
-        const reverseContainer = document.getElementById("reversePredictions");
-        const extraContainer = document.getElementById("extraPredictions");
-        container.innerHTML = "";
-        reverseContainer.innerHTML = "";
-        extraContainer.innerHTML = "";
+        const top3 = data["Top3예측"]
+          .map(v => `<div class="value">${v[0]} (${v[1]}점)</div>`)
+          .join("");
+        document.getElementById("top3").innerHTML = `<span class="label">Top3 예측값 (75% 확률)</span>${top3}`;
 
-        for (const dir in data["Top3"]) {
-          const card = document.createElement("div");
-          card.className = "card";
-          card.innerHTML = `<h3>${dir}</h3>`;
-          const list = data["Top3"][dir].map(item => `${item.value} (${item.count})`).join("<br>") || "❌ 없음";
-          card.innerHTML += `<div>${list}</div>`;
+        const exclude = data["제외값"];
+        document.getElementById("exclude").innerHTML = `<span class="label">제외값 (25% 가능성):</span><div class="value">${exclude[0]} (${exclude[1]}점)</div>`;
 
-          if (dir.includes("180도")) {
-            reverseContainer.appendChild(card);
-          } else if (dir.includes("합산") || dir.includes("Top3")) {
-            extraContainer.appendChild(card);
-          } else {
-            container.appendChild(card);
-          }
-        }
+        const recent = data["최근흐름"]
+          .map((v, i) => `<div class="value">${20 - i}회 전: ${v}</div>`)
+          .join("");
+        document.getElementById("recent").innerHTML = `<span class="label">최근 20줄 흐름:</span>${recent}`;
+
+        const score = data["점수표"];
+        const scoreHtml = Object.entries(score)
+          .map(([k, v]) => `<div class="value">${k}: ${v}점</div>`)
+          .join("");
+        document.getElementById("score").innerHTML = `<span class="label">점수표 (맥락 기반 분석):</span>${scoreHtml}`;
       })
       .catch(err => {
-        document.getElementById("recentBlock").innerText = "❌ 블랙 데이터를 불러오지 못했습니다.";
+        document.body.innerHTML += `<div class="card">오류 발생: ${err}</div>`;
       });
   </script>
 </body>
