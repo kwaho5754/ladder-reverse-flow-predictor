@@ -1,4 +1,3 @@
-# ✅ 완전 수정된 main.py
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from supabase import create_client, Client
@@ -65,10 +64,13 @@ def find_top3(data, block_size, rotate=False):
 
     return result, recent_block
 
-def find_all_first_matches(data, block_sizes, rotate=False):
-    recent_blocks = {n: data[0:n] for n in block_sizes}
-    if rotate:
+def find_all_first_matches(data, block_sizes, rotate=False, transform=None):
+    if transform:
+        recent_blocks = {n: transform(data[0:n]) for n in block_sizes}
+    elif rotate:
         recent_blocks = {n: rotate_block(data[0:n]) for n in block_sizes}
+    else:
+        recent_blocks = {n: data[0:n] for n in block_sizes}
 
     used_positions = set()
     results = {}
@@ -119,6 +121,10 @@ def predict():
 
         first_matches = find_all_first_matches(all_data, [5, 4, 3])
         first_matches_r = find_all_first_matches(all_data, [5, 4, 3], rotate=True)
+        first_matches_sym = find_all_first_matches(
+            all_data, [5, 4, 3],
+            transform=lambda b: [reverse_name(x) for x in b]
+        )
 
         return jsonify({
             "예측회차": round_num,
@@ -129,7 +135,8 @@ def predict():
             "Top3_3줄_180도": result3_r,
             "Top3_4줄_180도": result4_r,
             "처음매칭": first_matches,
-            "처음매칭_180도": first_matches_r
+            "처음매칭_180도": first_matches_r,
+            "처음매칭_대칭": first_matches_sym
         })
 
     except Exception as e:

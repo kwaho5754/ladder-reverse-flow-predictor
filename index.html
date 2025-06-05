@@ -124,12 +124,13 @@
           }
         };
 
-        const showFirstMatches = (matches, matchesRotated) => {
+        const showFirstMatches = (matches, matchesRotated, matchesSym) => {
           const container = document.getElementById("first-match");
           let html = "";
           for (const key of ["3줄", "4줄", "5줄"]) {
             const info = matches[key];
             const infoR = matchesRotated[key];
+            const infoS = matchesSym[key];
 
             const block = (info?.["블럭"] || []).join(" → ") || "(없음)";
             const top = info?.["상단"] || "(없음)";
@@ -138,6 +139,10 @@
             const blockR = (infoR?.["블럭"] || []).join(" → ") || "(없음)";
             const topR = infoR?.["상단"] || "(없음)";
             const bottomR = infoR?.["하단"] || "(없음)";
+
+            const blockS = (infoS?.["블럭"] || []).join(" → ") || "(없음)";
+            const topS = infoS?.["상단"] || "(없음)";
+            const bottomS = infoS?.["하단"] || "(없음)";
 
             html += `
               <div class="grid-row">
@@ -153,6 +158,12 @@
                   <div>상단값: ${topR}</div>
                   <div>하단값: ${bottomR}</div>
                 </div>
+                <div class="card">
+                  <span class="label">🪞 ${key} 블럭 대칭 매칭</span>
+                  <div>블럭: ${blockS}</div>
+                  <div>상단값: ${topS}</div>
+                  <div>하단값: ${bottomS}</div>
+                </div>
               </div>
             `;
           }
@@ -165,7 +176,7 @@
         showRecent(data["최근블럭4"], "recent4", "최근 4줄 블럭");
         showCombinedTop3(data["Top3_4줄"], data["Top3_4줄_180도"], "result4");
 
-        showFirstMatches(data["처음매칭"], data["처음매칭_180도"]);
+        showFirstMatches(data["처음매칭"], data["처음매칭_180도"], data["처음매칭_대칭"]);
       })
       .catch((error) => {
         document.body.innerHTML = `<div class="container"><div class="card">예측 데이터를 불러오는 중 오류 발생: ${error}</div></div>`;
