@@ -1,71 +1,131 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <title>사다리 예측 시스템</title>
-    <style>
-        body { font-family: Arial, sans-serif; background: #111; color: #fff; padding: 20px; }
-        h1 { color: #00e0ff; }
-        .section { margin-bottom: 40px; }
-        .block-group { display: flex; gap: 20px; flex-wrap: wrap; }
-        .block-card {
-            background: #222;
-            border: 1px solid #444;
-            padding: 15px;
-            border-radius: 10px;
-            min-width: 220px;
-        }
-        .block-card h3 { margin-top: 0; color: #ffcc00; }
-        .summary { margin-top: 10px; color: #00ffaa; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>사다리 예측 시스템</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #f4f4f4;
+      margin: 0; padding: 0;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 20px;
+      background: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h2 {
+      text-align: center;
+    }
+    .section {
+      margin-bottom: 30px;
+    }
+    .grid-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .card {
+      border: 1px solid #ddd;
+      padding: 15px;
+      background: #fafafa;
+      flex: 1;
+      min-width: 280px;
+    }
+    .label {
+      font-weight: bold;
+      margin-bottom: 10px;
+      display: block;
+      color: #333;
+    }
+    .value {
+      margin-left: 15px;
+    }
+    .highlight {
+      background: #e3f2fd;
+    }
+  </style>
 </head>
 <body>
-    <h1>사다리 예측 시스템</h1>
-    <div id="round"></div>
+  <div class="container">
+    <h2>사다리 예측 시스템</h2>
+    <div id="round" class="section"></div>
+    <div id="recent" class="section"></div>
+    <div id="predictions" class="section"></div>
+  </div>
 
-    <div class="section">
-        <h2>🔹 3줄 블럭 예측 결과</h2>
-        <div class="block-group" id="result-3"></div>
-        <div class="summary" id="summary-3"></div>
-    </div>
+  <script>
+    fetch("/predict")
+      .then((res) => res.json())
+      .then((data) => {
+        document.getElementById("round").innerHTML = `<div class="card"><span class="label">예측 회차:</span> ${data["예측회차"]}</div>`;
 
-    <div class="section">
-        <h2>🔹 4줄 블럭 예측 결과</h2>
-        <div class="block-group" id="result-4"></div>
-        <div class="summary" id="summary-4"></div>
-    </div>
+        const recentBlock = data["최근블럭"];
+        const recentHtml = recentBlock.map((v, i) => `<div>${recentBlock.length - i} : ${v}</div>`).join("");
+        document.getElementById("recent").innerHTML = `<div class="card"><span class="label">최근 블럭 (최신 ↓ 과거):</span> ${recentHtml}</div>`;
 
-    <script>
-        fetch("/predict")
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById("round").innerText = `예측 기준 회차: ${data.recent_round}`;
+        const predictions = data["Top3"];
+        const container = document.getElementById("predictions");
 
-                const renderBlock = (result, containerId, summaryId) => {
-                    const container = document.getElementById(containerId);
-                    container.innerHTML = "";
+        const categories = {
+          "Top3 그룹": ["Top3 합산", "Top3 합산(180도)", "교집합 Top3", "가중치 Top3"],
+          "흐름 그룹": ["흐름 기반 Top3", "유사 블럭 Top3"]
+        };
 
-                    for (let key in result) {
-                        if (key.includes("합산")) continue;
-                        const card = document.createElement("div");
-                        card.className = "block-card";
-                        const top3 = result[key].top3.map(([val, cnt]) => `${val} (${cnt})`).join("<br>");
-                        card.innerHTML = `<h3>${key}</h3>${top3}`;
-                        container.appendChild(card);
-                    }
+        for (const [groupName, keys] of Object.entries(categories)) {
+          const row = document.createElement("div");
+          row.className = "grid-row";
 
-                    const summary = document.getElementById(summaryId);
-                    const sum = result[Object.keys(result).find(k => k.includes("합산"))];
-                    summary.innerHTML = `<strong>합산 Top3:</strong><br>` + sum.map(([val, cnt]) => `${val} (${cnt})`).join("<br>");
-                };
+          keys.forEach((key) => {
+            if (predictions[key]) {
+              const card = document.createElement("div");
+              card.className = "card";
+              const title = document.createElement("div");
+              title.className = "label";
+              title.textContent = key;
+              const list = predictions[key].map((v) => `<div class="value">${v.value} (${v.count})</div>`).join("");
+              card.appendChild(title);
+              card.innerHTML += list;
+              row.appendChild(card);
+            }
+          });
 
-                renderBlock(data.results["3줄 블럭"], "result-3", "summary-3");
-                renderBlock(data.results["4줄 블럭"], "result-4", "summary-4");
-            })
-            .catch(err => {
-                document.body.innerHTML = "<h2>예측 결과를 불러오는 데 실패했습니다.</h2>";
-                console.error(err);
-            });
-    </script>
+          container.appendChild(row);
+        }
+
+        // ✅ 예측 Top3 기반 통계 출력
+        const topStats = data["Top3분석"];
+        const row = document.createElement("div");
+        row.className = "grid-row";
+
+        const makeCard = (title, items) => {
+          const card = document.createElement("div");
+          card.className = "card highlight";
+          const label = document.createElement("div");
+          label.className = "label";
+          label.textContent = title;
+          card.appendChild(label);
+          items.forEach(([k, v]) => {
+            const div = document.createElement("div");
+            div.className = "value";
+            div.textContent = `${k}: ${v}`;
+            card.appendChild(div);
+          });
+          return card;
+        };
+
+        row.appendChild(makeCard("시작점", [["좌", topStats["좌"]], ["우", topStats["우"]]]));
+        row.appendChild(makeCard("줄 수", [["3줄", topStats["3줄"]], ["4줄", topStats["4줄"]]]));
+        row.appendChild(makeCard("홀짝", [["홀", topStats["홀"]], ["짝", topStats["짝"]]]));
+
+        container.appendChild(row);
+      })
+      .catch((error) => {
+        document.getElementById("predictions").innerHTML = `<div class="card">예측 데이터를 불러오는 중 오류 발생: ${error}</div>`;
+      });
+  </script>
 </body>
 </html>
