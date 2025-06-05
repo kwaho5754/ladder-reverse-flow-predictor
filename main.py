@@ -1,4 +1,4 @@
-# main.py (긴 줄수 우선 매칭 구조 적용)
+# main.py (블럭 방향 최신 → 과거로 수정)
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from supabase import create_client, Client
@@ -39,7 +39,7 @@ def find_top3(data, block_size, rotate=False):
     if len(data) < block_size + 1:
         return {}, []
 
-    recent_block = list(reversed(data[:block_size]))
+    recent_block = data[0:block_size]  # 최신 → 과거
     if rotate:
         recent_block = rotate_block(recent_block)
 
@@ -68,16 +68,16 @@ def find_top3(data, block_size, rotate=False):
     return result, recent_block
 
 def find_all_first_matches(data, block_sizes):
-    recent_blocks = {n: list(reversed(data[:n])) for n in block_sizes}
+    recent_blocks = {n: data[0:n] for n in block_sizes}  # 최신 → 과거 방향 유지
     matched_positions = {}
     results = {n: None for n in block_sizes}
 
     for i in range(1, len(data)):
-        for size in sorted(block_sizes, reverse=True):  # 긴 줄수 우선
+        for size in sorted(block_sizes, reverse=True):
             if i + size >= len(data):
                 continue
             if any(i in matched_positions.get(s, set()) for s in block_sizes):
-                continue  # 이미 긴 블럭에 의해 매칭된 위치는 스킵
+                continue
 
             blk = data[i:i+size]
             if blk == recent_blocks[size]:
