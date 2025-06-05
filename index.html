@@ -1,42 +1,105 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>사다리 예측 시스템</title>
   <style>
-    body { font-family: sans-serif; background: #f5f5f5; padding: 2rem; }
-    .section { background: white; border-radius: 8px; padding: 1rem; margin-bottom: 2rem; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-    .section h2 { margin-top: 0; }
-    .block, .top3 { font-size: 1.1rem; margin-top: 0.5rem; }
+    body {
+      background-color: #111;
+      color: #fff;
+      font-family: 'Pretendard', sans-serif;
+      padding: 20px;
+    }
+    h1 {
+      color: #00e0ff;
+    }
+    .section {
+      background-color: #222;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+    }
+    .section h2 {
+      color: #ffaa00;
+      margin-bottom: 10px;
+    }
+    .label {
+      color: #ccc;
+      font-weight: bold;
+    }
+    .value {
+      color: #00ff88;
+      font-size: 1.2em;
+      margin-bottom: 10px;
+    }
+    .block {
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
-  <div class="section" id="section-3">
-    <h2>🔢 3줄 블럭 예측</h2>
-    <div class="block">최근 블럭: <span id="recent-3"></span></div>
-    <div class="top3">Top3 예측: <span id="top3-3"></span></div>
+  <h1>사다리 예측 시스템</h1>
+
+  <div id="info" class="section">
+    <h2>예측 회차</h2>
+    <div class="value" id="round">-</div>
   </div>
 
-  <div class="section" id="section-4">
-    <h2>🔢 4줄 블럭 예측</h2>
-    <div class="block">최근 블럭: <span id="recent-4"></span></div>
-    <div class="top3">Top3 예측: <span id="top3-4"></span></div>
+  <div class="section">
+    <h2>3줄 블럭 예측</h2>
+    <div class="label">최근 블럭:</div>
+    <div class="value" id="block3">-</div>
+    <div class="block">
+      <div class="label">[원본]</div>
+      <div class="value" id="pred3-원본">-</div>
+      <div class="label">[대치]</div>
+      <div class="value" id="pred3-대치">-</div>
+      <div class="label">[시작점반전]</div>
+      <div class="value" id="pred3-시작점반전">-</div>
+      <div class="label">[홀짝반전]</div>
+      <div class="value" id="pred3-홀짝반전">-</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>4줄 블럭 예측</h2>
+    <div class="label">최근 블럭:</div>
+    <div class="value" id="block4">-</div>
+    <div class="block">
+      <div class="label">[원본]</div>
+      <div class="value" id="pred4-원본">-</div>
+      <div class="label">[대치]</div>
+      <div class="value" id="pred4-대치">-</div>
+      <div class="label">[시작점반전]</div>
+      <div class="value" id="pred4-시작점반전">-</div>
+      <div class="label">[홀짝반전]</div>
+      <div class="value" id="pred4-홀짝반전">-</div>
+    </div>
   </div>
 
   <script>
-    async function fetchPrediction() {
+    async function loadData() {
       const res = await fetch("/predict");
       const data = await res.json();
 
-      document.getElementById("recent-3").textContent = data.recent_block_3 || "-";
-      document.getElementById("recent-4").textContent = data.recent_block_4 || "-";
+      document.getElementById("round").textContent = data["예측회차"];
+      document.getElementById("block3").textContent = data["최근블럭_3줄"].join(" - ");
+      document.getElementById("block4").textContent = data["최근블럭_4줄"].join(" - ");
 
-      document.getElementById("top3-3").textContent = data.top3_3?.map(v => v[0]).join(" / ") || "-";
-      document.getElementById("top3-4").textContent = data.top3_4?.map(v => v[0]).join(" / ") || "-";
+      const pred3 = data["3줄 예측"];
+      const pred4 = data["4줄 예측"];
+
+      ["원본", "대치", "시작점반전", "홀짝반전"].forEach(key => {
+        const p3 = pred3[key]?.map(p => `${p[0]}(${p[1]})`).join(", ") || "❌ 없음";
+        const p4 = pred4[key]?.map(p => `${p[0]}(${p[1]})`).join(", ") || "❌ 없음";
+
+        document.getElementById(`pred3-${key}`).textContent = p3;
+        document.getElementById(`pred4-${key}`).textContent = p4;
+      });
     }
-    fetchPrediction();
+
+    loadData();
+    setInterval(loadData, 30000); // 30초마다 자동 갱신
   </script>
 </body>
 </html>
