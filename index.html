@@ -14,6 +14,7 @@
     .card h2 { font-size: 1.4rem; margin-bottom: 1rem; }
     .card ul { list-style: none; padding: 0; }
     .card li { font-size: 1.1rem; padding: 0.4rem 0; border-bottom: 1px solid #eee; }
+    .highlight { color: #d42a2a; font-weight: bold; }
     .error { color: red; text-align: center; margin-top: 2rem; }
   </style>
 </head>
@@ -30,6 +31,8 @@
         const data = await res.json();
 
         const box = document.getElementById("result-box");
+        const top3 = data["Top3최종예측"]?.map(item => `<span class="highlight">${item}</span>`).join(", ") || "없음";
+
         box.innerHTML = `
           <h2>📅 예측 회차: ${data["예측회차"]}</h2>
           <ul>
@@ -39,6 +42,7 @@
             <li>🚫 중복억제예측: <strong>${data["중복억제예측"]}</strong></li>
             <li>🔁 비대칭반전예측: <strong>${data["비대칭반전예측"]}</strong></li>
             <li>📉 진폭예측: <strong>${data["진폭예측"]}</strong></li>
+            <li>🏆 <strong>Top3최종예측:</strong> ${top3}</li>
           </ul>
         `;
       } catch (err) {
