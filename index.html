@@ -1,192 +1,49 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>사다리 예측 시스템</title>
+  <meta charset="UTF-8">
+  <title>비블럭 예측 결과</title>
   <style>
-    body {
-      font-family: 'Arial', sans-serif;
-      background-color: #f4f4f4;
-      margin: 0; padding: 0;
-    }
-    .container {
-      max-width: 1200px;
-      margin: 20px auto;
-      padding: 20px;
-      background: white;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-    h2 {
-      text-align: center;
-    }
-    .section {
-      margin-bottom: 30px;
-    }
-    .grid-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
+    body { font-family: "Noto Sans KR", sans-serif; background: #f4f7ff; padding: 2rem; }
+    h1 { font-size: 1.8rem; text-align: center; margin-bottom: 2rem; }
     .card {
-      border: 1px solid #ddd;
-      padding: 15px;
-      background: #fafafa;
-      flex: 1;
-      min-width: 280px;
+      max-width: 500px; margin: 0 auto;
+      background: #fff; border-radius: 10px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1); padding: 1.5rem;
     }
-    .label {
-      font-weight: bold;
-      margin-bottom: 10px;
-      display: block;
-      color: #333;
-    }
-    .value {
-      margin-left: 15px;
-    }
-    .divider {
-      margin: 10px 0 5px;
-      font-weight: bold;
-      color: #666;
-    }
-    .highlight {
-      background: #e6f7ff;
-      padding: 10px;
-      border-left: 4px solid #1890ff;
-      margin-top: 20px;
-    }
+    .card h2 { font-size: 1.4rem; margin-bottom: 1rem; }
+    .card ul { list-style: none; padding: 0; }
+    .card li { font-size: 1.1rem; padding: 0.4rem 0; border-bottom: 1px solid #eee; }
+    .error { color: red; text-align: center; margin-top: 2rem; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>사다리 예측 시스템</h2>
-    <div id="round" class="section"></div>
-
-    <div id="recent3" class="section"></div>
-    <div class="grid-row" id="result3"></div>
-
-    <div id="recent4" class="section"></div>
-    <div class="grid-row" id="result4"></div>
-
-    <div class="section highlight">
-      <h3>🔍 처음 매칭된 블럭 결과</h3>
-      <div id="first-match"></div>
-    </div>
+  <h1>🧠 블럭 없이 3가지 방식 예측</h1>
+  <div class="card" id="result-box">
+    <h2>로딩 중...</h2>
   </div>
 
   <script>
-    fetch("/predict")
-      .then((res) => res.json())
-      .then((data) => {
-        document.getElementById("round").innerHTML = `<div class="card"><span class="label">예측 회차:</span> ${data["예측회차"]}</div>`;
+    async function loadMetaPredict() {
+      try {
+        const res = await fetch("/meta_predict");
+        const data = await res.json();
 
-        const showRecent = (list, targetId, title) => {
-          const html = list.map((v, i) => `<div>${i + 1} : ${v}</div>`).join("");
-          document.getElementById(targetId).innerHTML = `<div class="card"><span class="label">${title} (최신 → 과거):</span> ${html}</div>`;
-        };
+        const box = document.getElementById("result-box");
+        box.innerHTML = `
+          <h2>📅 예측 회차: ${data["예측회차"]}</h2>
+          <ul>
+            <li>🧠 메타흐름예측: <strong>${data["메타흐름예측"]}</strong></li>
+            <li>⏱️ 주기패턴예측: <strong>${data["주기패턴예측"]}</strong></li>
+            <li>🌐 짝수위치예측: <strong>${data["짝수위치예측"]}</strong></li>
+          </ul>
+        `;
+      } catch (err) {
+        document.getElementById("result-box").innerHTML = `<p class="error">예측 데이터를 불러오는 중 오류 발생: ${err.message}</p>`;
+      }
+    }
 
-        const showCombinedTop3 = (result, resultRotated, targetId) => {
-          const container = document.getElementById(targetId);
-          container.innerHTML = "";
-
-          const allKeys = Object.keys(result);
-          for (const key of allKeys) {
-            const card = document.createElement("div");
-            card.className = "card";
-
-            const label = document.createElement("div");
-            label.className = "label";
-            label.textContent = key;
-            card.appendChild(label);
-
-            result[key]?.forEach(v => {
-              const div = document.createElement("div");
-              div.className = "value";
-              div.textContent = `${v.value} (${v.count})`;
-              card.appendChild(div);
-            });
-
-            if (resultRotated[key]?.length) {
-              const divider = document.createElement("div");
-              divider.className = "divider";
-              divider.textContent = "(180도)";
-              card.appendChild(divider);
-
-              resultRotated[key].forEach(v => {
-                const div = document.createElement("div");
-                div.className = "value";
-                div.textContent = `${v.value} (${v.count})`;
-                card.appendChild(div);
-              });
-            }
-
-            container.appendChild(card);
-          }
-        };
-
-        const showFirstMatches = (matches, matchesRotated, matchesSym) => {
-          const container = document.getElementById("first-match");
-          let html = "";
-          for (const key of ["3줄", "4줄", "5줄"]) {
-            const info = matches[key];
-            const infoR = matchesRotated[key];
-            const infoS = matchesSym[key];
-
-            const block = (info?.["블럭"] || []).join(" → ") || "(없음)";
-            const top = info?.["상단"] || "(없음)";
-            const bottom = info?.["하단"] || "(없음)";
-            const order = info?.["순번"] || "(없음)";
-
-            const blockR = (infoR?.["블럭"] || []).join(" → ") || "(없음)";
-            const topR = infoR?.["상단"] || "(없음)";
-            const bottomR = infoR?.["하단"] || "(없음)";
-            const orderR = infoR?.["순번"] || "(없음)";
-
-            const blockS = (infoS?.["블럭"] || []).join(" → ") || "(없음)";
-            const topS = infoS?.["상단"] || "(없음)";
-            const bottomS = infoS?.["하단"] || "(없음)";
-            const orderS = infoS?.["순번"] || "(없음)";
-
-            html += `
-              <div class="grid-row">
-                <div class="card">
-                  <span class="label">✅ ${key} 블럭 첫 매칭</span>
-                  <div>블럭: ${block}</div>
-                  <div>상단값: ${top}</div>
-                  <div>하단값: ${bottom}</div>
-                  <div>순번: ${order}</div>
-                </div>
-                <div class="card">
-                  <span class="label">🔄 ${key} 블럭 180도 매칭</span>
-                  <div>블럭: ${blockR}</div>
-                  <div>상단값: ${topR}</div>
-                  <div>하단값: ${bottomR}</div>
-                  <div>순번: ${orderR}</div>
-                </div>
-                <div class="card">
-                  <span class="label">🪞 ${key} 블럭 대칭 매칭</span>
-                  <div>블럭: ${blockS}</div>
-                  <div>상단값: ${topS}</div>
-                  <div>하단값: ${bottomS}</div>
-                  <div>순번: ${orderS}</div>
-                </div>
-              </div>
-            `;
-          }
-          container.innerHTML = html;
-        };
-
-        showRecent(data["최근블럭3"], "recent3", "최근 3줄 블럭");
-        showCombinedTop3(data["Top3_3줄"], data["Top3_3줄_180도"], "result3");
-
-        showRecent(data["최근블럭4"], "recent4", "최근 4줄 블럭");
-        showCombinedTop3(data["Top3_4줄"], data["Top3_4줄_180도"], "result4");
-
-        showFirstMatches(data["처음매칭"], data["처음매칭_180도"], data["처음매칭_대칭"]);
-      })
-      .catch((error) => {
-        document.body.innerHTML = `<div class="container"><div class="card">예측 데이터를 불러오는 중 오류 발생: ${error}</div></div>`;
-      });
+    loadMetaPredict();
   </script>
 </body>
 </html>
