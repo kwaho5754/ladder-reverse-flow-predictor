@@ -2,24 +2,52 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>비블럭 예측 결과</title>
+  <title>Top3 예측 결과</title>
   <style>
-    body { font-family: "Noto Sans KR", sans-serif; background: #f4f7ff; padding: 2rem; }
-    h1 { font-size: 1.8rem; text-align: center; margin-bottom: 2rem; }
-    .card {
-      max-width: 600px; margin: 0 auto;
-      background: #fff; border-radius: 10px;
-      box-shadow: 0 0 8px rgba(0,0,0,0.1); padding: 1.5rem;
+    body {
+      font-family: "Noto Sans KR", sans-serif;
+      background: #f4f7ff;
+      padding: 2rem;
     }
-    .card h2 { font-size: 1.4rem; margin-bottom: 1rem; }
-    .card ul { list-style: none; padding: 0; }
-    .card li { font-size: 1.1rem; padding: 0.4rem 0; border-bottom: 1px solid #eee; }
-    .highlight { color: #d42a2a; font-weight: bold; }
-    .error { color: red; text-align: center; margin-top: 2rem; }
+    h1 {
+      font-size: 1.8rem;
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .card {
+      max-width: 600px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+      padding: 1.5rem;
+    }
+    .card h2 {
+      font-size: 1.4rem;
+      margin-bottom: 1rem;
+    }
+    .card ul {
+      list-style: none;
+      padding: 0;
+    }
+    .card li {
+      font-size: 1.2rem;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid #eee;
+    }
+    .highlight {
+      color: #d42a2a;
+      font-weight: bold;
+    }
+    .error {
+      color: red;
+      text-align: center;
+      margin-top: 2rem;
+    }
   </style>
 </head>
 <body>
-  <h1>🧠 블럭 없이 6가지 방식 예측</h1>
+  <h1>🏆 고정 Top3 예측 결과</h1>
   <div class="card" id="result-box">
     <h2>로딩 중...</h2>
   </div>
@@ -36,13 +64,7 @@
         box.innerHTML = `
           <h2>📅 예측 회차: ${data["예측회차"]}</h2>
           <ul>
-            <li>🧠 메타흐름예측: <strong>${data["메타흐름예측"]}</strong></li>
-            <li>⏱️ 주기패턴예측: <strong>${data["주기패턴예측"]}</strong></li>
-            <li>🌐 짝수위치예측: <strong>${data["짝수위치예측"]}</strong></li>
-            <li>🚫 중복억제예측: <strong>${data["중복억제예측"]}</strong></li>
-            <li>🔁 비대칭반전예측: <strong>${data["비대칭반전예측"]}</strong></li>
-            <li>📉 진폭예측: <strong>${data["진폭예측"]}</strong></li>
-            <li>🏆 <strong>Top3최종예측:</strong> ${top3}</li>
+            <li>🥇 Top3 최종 예측: ${top3}</li>
           </ul>
         `;
       } catch (err) {
