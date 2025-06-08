@@ -3,6 +3,7 @@ from flask_cors import CORS
 from supabase import create_client, Client
 from dotenv import load_dotenv
 import os
+from collections import Counter
 
 load_dotenv()
 
@@ -12,6 +13,7 @@ CORS(app)
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 SUPABASE_TABLE = os.environ.get("SUPABASE_TABLE", "ladder")
+
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def convert(entry):
@@ -32,12 +34,22 @@ def flip_start(block):
 def flip_odd_even(block):
     return [('우' if s == '좌' else '좌') + ('4' if c == '3' else '3') + o for s, c, o in map(parse_block, block)]
 
-def find_all_matches(block, full_data):
+def find_all_matches(block, full_data, existing_matches_indices=None):
     top_matches = []
     bottom_matches = []
     block_len = len(block)
 
     for i in reversed(range(len(full_data) - block_len + 1)):
+        is_overlapping = False
+        if existing_matches_indices:
+            for existing_start, existing_len in existing_matches_indices:
+                if max(i, existing_start) < min(i + block_len, existing_start + existing_len):
+                    is_overlapping = True
+                    break
+
+        if is_overlapping:
+            continue
+
         candidate = full_data[i:i + block_len]
         if candidate == block:
             top_index = i - 1
@@ -65,8 +77,13 @@ def home():
 @app.route("/predict")
 def predict():
     try:
-        mode = request.args.get("mode", "4block_orig")
-        size = int(mode[0])
+        mode = request.args.get("mode", "3block_orig")
+        offset = int(request.args.get("offset", "0"))
+
+        size_str = mode[0]
+        if size_str not in ['3', '4']:
+            return jsonify({"error": "지원하지 않는 블럭 크기입니다. 3 또는 4만 가능합니다."}), 400
+        size = int(size_str)
 
         response = supabase.table(SUPABASE_TABLE) \
             .select("*") \
@@ -78,7 +95,7 @@ def predict():
         raw = response.data
         round_num = int(raw[0]["date_round"]) + 1
         all_data = [convert(d) for d in raw]
-        recent_flow = all_data[:size]
+        recent_flow = all_data[offset:offset + size]
 
         if "flip_full" in mode:
             flow = flip_full(recent_flow)
@@ -89,7 +106,18 @@ def predict():
         else:
             flow = recent_flow
 
-        top, bottom = find_all_matches(flow, all_data)
+        if size == 3:
+            four_block_matched_indices = []
+            four_block_recent_flow = all_data[offset:offset + 4]
+            for fn in [lambda x: x, flip_full, flip_start, flip_odd_even]:
+                transformed_four_block = fn(four_block_recent_flow)
+                for i in range(len(all_data) - len(transformed_four_block) + 1):
+                    if all_data[i:i + len(transformed_four_block)] == transformed_four_block:
+                        four_block_matched_indices.append((i, len(transformed_four_block)))
+
+            top, bottom = find_all_matches(flow, all_data, existing_matches_indices=four_block_matched_indices)
+        else:
+            top, bottom = find_all_matches(flow, all_data)
 
         return jsonify({
             "예측회차": round_num,
