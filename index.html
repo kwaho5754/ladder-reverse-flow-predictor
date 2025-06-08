@@ -1,78 +1,204 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>Top3 예측 결과</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>사다리 예측 시스템</title>
   <style>
     body {
-      font-family: "Noto Sans KR", sans-serif;
-      background: #f4f7ff;
-      padding: 2rem;
+      font-family: Arial, sans-serif;
+      margin: 20px;
     }
     h1 {
-      font-size: 1.8rem;
-      text-align: center;
-      margin-bottom: 2rem;
+      margin-top: 60px;
+      border-bottom: 2px solid #ccc;
+      padding-bottom: 5px;
+    }
+    .summary-box {
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin-bottom: 20px;
     }
     .card {
-      max-width: 600px;
-      margin: 0 auto;
-      background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 0 8px rgba(0,0,0,0.1);
-      padding: 1.5rem;
+      border: 1px solid #aaa;
+      padding: 10px;
+      margin: 10px;
+      flex: 1;
+      background-color: #fff;
+      border-radius: 6px;
+      box-shadow: 1px 1px 4px rgba(0,0,0,0.1);
     }
-    .card h2 {
-      font-size: 1.4rem;
-      margin-bottom: 1rem;
+    .card-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
     }
-    .card ul {
-      list-style: none;
-      padding: 0;
+    ol {
+      padding-left: 20px;
     }
-    .card li {
-      font-size: 1.2rem;
-      padding: 0.6rem 0;
-      border-bottom: 1px solid #eee;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
     }
-    .highlight {
-      color: #d42a2a;
-      font-weight: bold;
-    }
-    .error {
-      color: red;
-      text-align: center;
-      margin-top: 2rem;
+    th, td {
+      border: 1px solid #aaa;
+      padding: 5px 8px;
+      text-align: left;
     }
   </style>
 </head>
 <body>
-  <h1>🏆 고정 Top3 예측 결과</h1>
-  <div class="card" id="result-box">
-    <h2>로딩 중...</h2>
-  </div>
-
   <script>
-    async function loadMetaPredict() {
-      try {
-        const res = await fetch("/meta_predict");
-        const data = await res.json();
+    const blockSizes = [4, 8, 12];
 
-        const box = document.getElementById("result-box");
-        const top3 = data["Top3최종예측"]?.map(item => `<span class="highlight">${item}</span>`).join(", ") || "없음";
+    const modeVariants = [
+      "orig", "flip_full", "flip_start", "flip_odd_even"
+    ];
 
-        box.innerHTML = `
-          <h2>📅 예측 회차: ${data["예측회차"]}</h2>
-          <ul>
-            <li>🥇 Top3 최종 예측: ${top3}</li>
-          </ul>
+    const modeTitles = {
+      4: "4줄 블럭", 8: "8줄 블럭", 12: "12줄 블럭"
+    };
+
+    const transformLabel = {
+      "orig": "원본", "flip_start": "시작점 반전",
+      "flip_odd_even": "홀짝 반전", "flip_full": "완전 대칭"
+    };
+
+    function getFrequency(arr) {
+      const counter = {};
+      for (const item of arr) {
+        if (!item || item === "❌ 없음") continue;
+        counter[item] = (counter[item] || 0) + 1;
+      }
+      return counter;
+    }
+
+    function formatStat(counter) {
+      return Object.entries(counter)
+        .sort((a, b) => b[1] - a[1])
+        .map(([k, v]) => `${k}(${v})`)
+        .join(", ");
+    }
+
+    function renderGroupedSummary(stats, blockSize) {
+      const container = document.getElementById(`grouped-summary-${blockSize}`);
+      container.innerHTML = "";
+
+      for (const group in stats) {
+        const box = document.createElement("div");
+        box.className = "summary-box";
+
+        const title = document.createElement("h2");
+        title.textContent = `📊 ${transformLabel[group]} 통계`;
+        box.appendChild(title);
+
+        const table = document.createElement("table");
+        table.innerHTML = `
+          <thead>
+            <tr><th>구분</th><th>값(횟수)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>상단</td><td>${formatStat(stats[group].top)}</td></tr>
+            <tr><td>하단</td><td>${formatStat(stats[group].bottom)}</td></tr>
+          </tbody>
         `;
-      } catch (err) {
-        document.getElementById("result-box").innerHTML = `<p class="error">예측 데이터를 불러오는 중 오류 발생: ${err.message}</p>`;
+        box.appendChild(table);
+        container.appendChild(box);
       }
     }
 
-    loadMetaPredict();
+    function createCard(mode, data, blockSize) {
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const label = document.createElement("h3");
+      label.textContent = `${modeTitles[blockSize]} (${transformLabel[mode]}) (회차 ${data["예측회차"]})`;
+      card.appendChild(label);
+
+      const topLabel = document.createElement("h4");
+      topLabel.textContent = "🔺 상단값 예측";
+      card.appendChild(topLabel);
+
+      const topList = document.createElement("ol");
+      for (const match of data["상단값들"] || []) {
+        const item = document.createElement("li");
+        item.textContent = `${match["값"]} | 블럭: ${match["블럭"]} | 순번: ${match["순번"]}`;
+        topList.appendChild(item);
+      }
+      card.appendChild(topList);
+
+      const bottomLabel = document.createElement("h4");
+      bottomLabel.textContent = "🔻 하단값 예측";
+      card.appendChild(bottomLabel);
+
+      const bottomList = document.createElement("ol");
+      for (const match of data["하단값들"] || []) {
+        const item = document.createElement("li");
+        item.textContent = `${match["값"]} | 블럭: ${match["블럭"]} | 순번: ${match["순번"]}`;
+        bottomList.appendChild(item);
+      }
+      card.appendChild(bottomList);
+
+      return card;
+    }
+
+    async function loadSet(blockSize) {
+      const resultContainer = document.getElementById(`results-${blockSize}`);
+      resultContainer.innerHTML = "";
+      const section = document.createElement("div");
+      section.className = "section";
+
+      const title = document.createElement("h2");
+      title.textContent = `${blockSize}줄 블럭 예측`;
+      section.appendChild(title);
+
+      const row = document.createElement("div");
+      row.className = "card-row";
+      section.appendChild(row);
+
+      resultContainer.appendChild(section);
+
+      const grouped = {
+        orig: { top: [], bottom: [] },
+        flip_full: { top: [], bottom: [] },
+        flip_start: { top: [], bottom: [] },
+        flip_odd_even: { top: [], bottom: [] },
+      };
+
+      for (const variant of modeVariants) {
+        const mode = `${blockSize}block_${variant}`;
+        try {
+          const res = await fetch(`/predict?mode=${mode}`);
+          const data = await res.json();
+
+          grouped[variant].top.push(...(data["상단값들"] || []).map(t => t["값"]));
+          grouped[variant].bottom.push(...(data["하단값들"] || []).map(t => t["값"]));
+
+          row.appendChild(createCard(variant, data, blockSize));
+        } catch (e) {
+          console.error(`❌ 오류: ${mode} 예측 실패`, e);
+        }
+      }
+
+      renderGroupedSummary(grouped, blockSize);
+    }
+
+    function init() {
+      for (const size of blockSizes) {
+        const container = document.createElement("div");
+        container.innerHTML = `
+          <h1>🔮 ${size}줄 블럭 예측 결과</h1>
+          <div id="grouped-summary-${size}"></div>
+          <div id="results-${size}"></div>
+        `;
+        document.body.appendChild(container);
+        loadSet(size);
+      }
+    }
+
+    window.onload = init;
   </script>
 </body>
 </html>
