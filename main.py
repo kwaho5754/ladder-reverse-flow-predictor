@@ -79,8 +79,8 @@ def find_all_matches(block, full_data, existing_matches_indices=None):
     if not bottom_matches:
         bottom_matches.append({"값": "❌ 없음", "블럭": ">".join(block), "순번": "❌"})
 
-    top_matches = sorted(top_matches, key=lambda x: int(x["순번"]) if str(x["순번"]).isdigit() else float('inf'))[:8]
-    bottom_matches = sorted(bottom_matches, key=lambda x: int(x["순번"]) if str(x["순번"]).isdigit() else float('inf'))[:8]
+    top_matches = sorted(top_matches, key=lambda x: int(x["순번"]) if str(x["순번"]).isdigit() else float('inf'))[:12]
+    bottom_matches = sorted(bottom_matches, key=lambda x: int(x["순번"]) if str(x["순번"]).isdigit() else float('inf'))[:12]
 
     return top_matches, bottom_matches
 
