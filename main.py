@@ -34,7 +34,7 @@ def flip_start(block):
 def flip_odd_even(block):
     return [('우' if s == '좌' else '좌') + ('4' if c == '3' else '3') + o for s, c, o in map(parse_block, block)]
 
-def find_all_matches(block, full_data, existing_matches_indices=None):
+def find_all_matches(block, full_data, limit_count=4, existing_matches_indices=None):
     top_matches = []
     bottom_matches = []
     block_len = len(block)
@@ -65,8 +65,8 @@ def find_all_matches(block, full_data, existing_matches_indices=None):
     if not bottom_matches:
         bottom_matches.append({"값": "❌ 없음", "블럭": ">".join(block), "순번": "❌"})
 
-    top_matches = sorted(top_matches, key=lambda x: int(x["순번"]) if str(x["순번"]).isdigit() else float('inf'))[:4]
-    bottom_matches = sorted(bottom_matches, key=lambda x: int(x["순번"]) if str(x["순번"]).isdigit() else float('inf'))[:4]
+    top_matches = sorted(top_matches, key=lambda x: int(x["순번"]) if str(x["순번"]).isdigit() else float('inf'))[:limit_count]
+    bottom_matches = sorted(bottom_matches, key=lambda x: int(x["순번"]) if str(x["순번"]).isdigit() else float('inf'))[:limit_count]
 
     return top_matches, bottom_matches
 
@@ -79,6 +79,7 @@ def predict():
     try:
         mode = request.args.get("mode", "3block_orig")
         offset = int(request.args.get("offset", "0"))
+        limit_count = int(request.args.get("limit", "4"))
 
         size_str = mode[0]
         if size_str not in ['3', '4']:
@@ -115,9 +116,9 @@ def predict():
                     if all_data[i:i + len(transformed_four_block)] == transformed_four_block:
                         four_block_matched_indices.append((i, len(transformed_four_block)))
 
-            top, bottom = find_all_matches(flow, all_data, existing_matches_indices=four_block_matched_indices)
+            top, bottom = find_all_matches(flow, all_data, limit_count, existing_matches_indices=four_block_matched_indices)
         else:
-            top, bottom = find_all_matches(flow, all_data)
+            top, bottom = find_all_matches(flow, all_data, limit_count)
 
         return jsonify({
             "예측회차": round_num,
