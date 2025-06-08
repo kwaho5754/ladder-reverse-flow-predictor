@@ -78,7 +78,6 @@ def home():
 def predict():
     try:
         mode = request.args.get("mode", "3block_orig")
-        offset = int(request.args.get("offset", "0"))
         limit_count = int(request.args.get("limit", "4"))
 
         size_str = mode[0]
@@ -96,7 +95,7 @@ def predict():
         raw = response.data
         round_num = int(raw[0]["date_round"]) + 1
         all_data = [convert(d) for d in raw]
-        recent_flow = all_data[offset:offset + size]
+        recent_flow = all_data[:size]
 
         if "flip_full" in mode:
             flow = flip_full(recent_flow)
@@ -109,7 +108,7 @@ def predict():
 
         if size == 3:
             four_block_matched_indices = []
-            four_block_recent_flow = all_data[offset:offset + 4]
+            four_block_recent_flow = all_data[:4]
             for fn in [lambda x: x, flip_full, flip_start, flip_odd_even]:
                 transformed_four_block = fn(four_block_recent_flow)
                 for i in range(len(all_data) - len(transformed_four_block) + 1):

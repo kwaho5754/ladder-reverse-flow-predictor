@@ -2,38 +2,21 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>사다리 블럭 예측 결과 - 멀티 세트</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>사다리 예측 시스템</title>
   <style>
-    body { font-family: "Noto Sans KR", sans-serif; background: #f4f7ff; padding: 2rem; }
-    h1 { font-size: 1.8rem; text-align: center; margin-bottom: 2rem; }
-    .summary-box {
-      max-width: 800px; margin: 0 auto 2rem auto;
-      background: #fff; border-radius: 10px;
-      box-shadow: 0 0 6px rgba(0,0,0,0.1); padding: 1rem;
-    }
-    .summary-box h2 { text-align: center; margin-bottom: 1rem; }
-    .summary-box table { width: 100%; border-collapse: collapse; }
-    .summary-box th, .summary-box td {
-      padding: 0.6rem; border-bottom: 1px solid #ddd; text-align: center;
-    }
-    .summary-box th { background: #eef2ff; }
-    .section { margin-bottom: 3rem; }
-    .card-row { display: flex; gap: 1rem; flex-wrap: wrap; }
-    .card {
-      background: #fff; padding: 1rem; border-radius: 0.8rem;
-      box-shadow: 0 0 8px rgba(0,0,0,0.1); width: 280px;
-    }
-    .card h3 { font-size: 1rem; margin-bottom: 0.5rem; }
-    .card h4 { font-size: 0.95rem; margin-top: 0.8rem; margin-bottom: 0.4rem; }
-    .card ol { padding-left: 1.2rem; }
-    .card li { font-size: 0.9rem; margin-bottom: 0.4rem; }
-    .set-title { font-size: 1.4rem; margin-top: 3rem; text-align: center; }
+    body { font-family: sans-serif; background: #111; color: #eee; }
+    .set { border: 1px solid #444; border-radius: 8px; padding: 10px; margin-bottom: 20px; background: #1e1e1e; }
+    h2 { color: #66f; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #666; padding: 4px; text-align: center; }
+    .card-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+    .card { border: 1px solid #888; border-radius: 8px; padding: 6px 10px; background: #222; }
   </style>
 </head>
 <body>
-  <h1>🔮 사다리 블럭 예측 결과 - 멀티 세트</h1>
-
-  <div id="all-sets"></div>
+  <h1>사다리 예측 시스템 - 3쌍둥이 (4/8/12 제한)</h1>
+  <div id="container"></div>
 
   <script>
     const modes = [
@@ -41,166 +24,68 @@
       "4block_orig", "4block_flip_full", "4block_flip_start", "4block_flip_odd_even"
     ];
 
-    const modeTitles = {
-      "3block": "3줄 블럭", "4block": "4줄 블럭"
-    };
+    async function loadSet(limit, title) {
+      const container = document.getElementById("container");
+      const wrapper = document.createElement("div");
+      wrapper.className = "set";
 
-    const transformLabel = {
-      "orig": "원본", "flip_start": "시작점 반전",
-      "flip_odd_even": "홀짝 반전", "flip_full": "완전 대칭"
-    };
+      const heading = document.createElement("h2");
+      heading.textContent = title;
+      wrapper.appendChild(heading);
 
-    const getModeKey = (mode) => mode.split("_")[0];
+      const table = document.createElement("table");
+      const thead = document.createElement("thead");
+      thead.innerHTML = `<tr><th>구분</th><th>예측값</th><th>횟수</th></tr>`;
+      table.appendChild(thead);
 
-    function createCard(mode, data) {
-      const card = document.createElement("div");
-      card.className = "card";
-
-      const mkey = getModeKey(mode);
-      const typeKey = mode.split("_").slice(1).join("_");
-
-      const label = document.createElement("h3");
-      label.textContent = `${modeTitles[mkey]} (${transformLabel[typeKey]}) (회차 ${data["예측회차"]})`;
-      card.appendChild(label);
-
-      const topLabel = document.createElement("h4");
-      topLabel.textContent = "🔺 상단값 예측";
-      card.appendChild(topLabel);
-
-      const topList = document.createElement("ol");
-      for (const match of data["상단값들"] || []) {
-        const item = document.createElement("li");
-        item.textContent = `${match["값"]} | 블럭: ${match["블럭"]} | 순번: ${match["순번"]}`;
-        topList.appendChild(item);
-      }
-      card.appendChild(topList);
-
-      const bottomLabel = document.createElement("h4");
-      bottomLabel.textContent = "🔻 하단값 예측";
-      card.appendChild(bottomLabel);
-
-      const bottomList = document.createElement("ol");
-      for (const match of data["하단값들"] || []) {
-        const item = document.createElement("li");
-        item.textContent = `${match["값"]} | 블럭: ${match["블럭"]} | 순번: ${match["순번"]}`;
-        bottomList.appendChild(item);
-      }
-      card.appendChild(bottomList);
-
-      return card;
-    }
-
-    function getFrequency(arr) {
-      const counter = {};
-      for (const item of arr) {
-        if (!item || item === "❌ 없음") continue;
-        counter[item] = (counter[item] || 0) + 1;
-      }
-      return counter;
-    }
-
-    function formatStat(counter) {
-      return Object.entries(counter)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
-        .map(([k, v]) => `${k}(${v})`)
-        .join(", ");
-    }
-
-    function renderGroupedSummary(statsByGroup, parentElement) {
-      for (const group in statsByGroup) {
-        const box = document.createElement("div");
-        box.className = "summary-box";
-
-        const title = document.createElement("h2");
-        title.textContent = `📊 ${transformLabel[group]} 통계`;
-        box.appendChild(title);
-
-        const table = document.createElement("table");
-        table.innerHTML = `
-          <thead>
-            <tr><th>구분</th><th>값(횟수)</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>상단</td><td>${formatStat(statsByGroup[group].top)}</td></tr>
-            <tr><td>하단</td><td>${formatStat(statsByGroup[group].bottom)}</td></tr>
-          </tbody>
-        `;
-
-        box.appendChild(table);
-        parentElement.appendChild(box);
-      }
-    }
-
-    async function loadSet(offset, setTitleText) {
-      const container = document.getElementById("all-sets");
-
-      const setTitle = document.createElement("div");
-      setTitle.className = "set-title";
-      setTitle.textContent = `📦 ${setTitleText}`;
-      container.appendChild(setTitle);
-
-      const summaryContainer = document.createElement("div");
-      container.appendChild(summaryContainer);
-
-      const resultContainer = document.createElement("div");
-      container.appendChild(resultContainer);
-
-      const sectionMap = {};
-
-      const grouped = {
-        orig: { top: [], bottom: [] },
-        flip_full: { top: [], bottom: [] },
-        flip_start: { top: [], bottom: [] },
-        flip_odd_even: { top: [], bottom: [] },
-      };
+      const tbody = document.createElement("tbody");
+      const totalCounts = {};
 
       for (const mode of modes) {
-        try {
-          const res = await fetch(`/predict?mode=${mode}&offset=${offset}`);
-          const data = await res.json();
+        const res = await fetch(`/predict?mode=${mode}&limit=${limit}`);
+        const data = await res.json();
 
-          const typeKey = mode.split("_").slice(1).join("_");
-          grouped[typeKey].top.push(...(data["상단값들"] || []).map(t => t["값"]));
-          grouped[typeKey].bottom.push(...(data["하단값들"] || []).map(t => t["값"]));
-
-          const sectionKey = getModeKey(mode);
-          if (!sectionMap[sectionKey]) {
-            const section = document.createElement("div");
-            section.className = "section";
-
-            const title = document.createElement("h2");
-            title.textContent = modeTitles[sectionKey];
-            section.appendChild(title);
-
-            const row = document.createElement("div");
-            row.className = "card-row";
-            section.appendChild(row);
-
-            resultContainer.appendChild(section);
-            sectionMap[sectionKey] = row;
-          }
-
-          sectionMap[sectionKey].appendChild(createCard(mode, data));
-        } catch (e) {
-          console.error(`❌ 오류: ${mode} 예측 결과 불러오기 실패`, e);
+        for (const group of ["상단값들", "하단값들"]) {
+          data[group].forEach(item => {
+            const key = item.값;
+            totalCounts[key] = (totalCounts[key] || 0) + 1;
+          });
         }
+
+        const modeTitle = document.createElement("div");
+        modeTitle.innerHTML = `<h4>${mode}</h4>`;
+        wrapper.appendChild(modeTitle);
+
+        const cards = document.createElement("div");
+        cards.className = "card-container";
+
+        for (const group of ["상단값들", "하단값들"]) {
+          data[group].forEach(item => {
+            const card = document.createElement("div");
+            card.className = "card";
+            card.textContent = `${group === "상단값들" ? "▲" : "▼"} ${item.값} (${item.블럭}) #${item.순번}`;
+            cards.appendChild(card);
+          });
+        }
+
+        wrapper.appendChild(cards);
       }
 
-      const stats = {};
-      for (const group in grouped) {
-        stats[group] = {
-          top: getFrequency(grouped[group].top),
-          bottom: getFrequency(grouped[group].bottom)
-        };
-      }
+      const sorted = Object.entries(totalCounts).sort((a, b) => b[1] - a[1]).slice(0, 4);
+      sorted.forEach(([val, count]) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `<td>Top</td><td>${val}</td><td>${count}</td>`;
+        tbody.appendChild(row);
+      });
 
-      renderGroupedSummary(stats, summaryContainer);
+      table.appendChild(tbody);
+      wrapper.appendChild(table);
+      container.appendChild(wrapper);
     }
 
-    loadSet(0, "최신 세트 (offset=0)");
-    loadSet(3, "두번째 세트 (offset=3)");
-    loadSet(6, "세번째 세트 (offset=6)");
+    loadSet(4, "세트 1 - 4개 제한");
+    loadSet(8, "세트 2 - 8개 제한");
+    loadSet(12, "세트 3 - 12개 제한");
   </script>
 </body>
 </html>
