@@ -34,7 +34,7 @@
 
   <div id="summary-4"></div>
   <div id="summary-8"></div>
-  <div id="summary-12></div>
+  <div id="summary-12"></div>
   <div id="results"></div>
 
   <script>
@@ -65,6 +65,7 @@
 
     function renderGroupedSummary(containerId, statsByGroup, limit) {
       const container = document.getElementById(containerId);
+      if (!container) return;
       container.innerHTML = "";
 
       const title = document.createElement("h2");
