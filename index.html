@@ -34,6 +34,7 @@
 
   <div id="summary-1"></div>
   <div id="summary-2"></div>
+  <div id="summary-3"></div>
   <div id="results"></div>
 
   <script>
@@ -42,7 +43,7 @@
       "4block_orig", "4block_flip_full", "4block_flip_start", "4block_flip_odd_even"
     ];
 
-    const limits = [1]; // 또는 [2]
+    const limits = [1, 2, 3];
 
     const modeTitles = {
       "3block": "3줄 블럭", "4block": "4줄 블럭"
@@ -98,9 +99,6 @@
             const allTop = data["상단값들"] || [];
             const allBottom = data["하단값들"] || [];
 
-            grouped[typeKey].top.push(...allTop.map(t => t["값"]));
-            grouped[typeKey].bottom.push(...allBottom.map(t => t["값"]));
-
             let displayTop = allTop;
             let displayBottom = allBottom;
             if (limit === 1) {
@@ -110,6 +108,10 @@
               displayTop = allTop.slice(1, 2);
               displayBottom = allBottom.slice(1, 2);
             }
+
+            // ⬇️ 통계용 집계도 displayTop/Bottom 기준으로 제한
+            grouped[typeKey].top.push(...displayTop.map(t => t["값"]));
+            grouped[typeKey].bottom.push(...displayBottom.map(t => t["값"]));
 
             const freqTop = getFrequency(grouped[typeKey].top);
             const freqBottom = getFrequency(grouped[typeKey].bottom);
