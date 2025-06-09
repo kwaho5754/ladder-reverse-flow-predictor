@@ -32,6 +32,8 @@
 <body>
   <h1>🔮 사다리 블럭 예측 결과</h1>
 
+  <div id="summary-4"></div>
+  <div id="summary-12"></div>
   <div id="results"></div>
 
   <script>
@@ -52,6 +54,116 @@
     };
 
     const getModeKey = (mode) => mode.split("_")[0];
+
+    function formatStat(counter) {
+      return Object.entries(counter)
+        .sort((a, b) => b[1] - a[1])
+        .map(([k, v]) => `${k}(${v})`)
+        .join(", ");
+    }
+
+    function renderGroupedSummary(containerId, statsByGroup, limit) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = "";
+
+      const title = document.createElement("h2");
+      title.textContent = `📊 예측 ${limit}개 상단 요약`;
+      container.appendChild(title);
+
+      for (const group in statsByGroup) {
+        const box = document.createElement("div");
+        box.className = "summary-box";
+
+        const subt = document.createElement("h2");
+        subt.textContent = `▶ ${transformLabel[group]}`;
+        box.appendChild(subt);
+
+        const table = document.createElement("table");
+        table.innerHTML = `
+          <thead>
+            <tr><th>구분</th><th>값(횟수)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>상단</td><td>${formatStat(statsByGroup[group].top)}</td></tr>
+            <tr><td>하단</td><td>${formatStat(statsByGroup[group].bottom)}</td></tr>
+          </tbody>
+        `;
+
+        box.appendChild(table);
+        container.appendChild(box);
+      }
+    }
+
+    function getFrequency(arr) {
+      const counter = {};
+      for (const item of arr) {
+        if (!item || item === "❌ 없음") continue;
+        counter[item] = (counter[item] || 0) + 1;
+      }
+      return counter;
+    }
+
+    async function loadResults() {
+      const resultContainer = document.getElementById("results");
+      resultContainer.innerHTML = "";
+
+      for (const limit of limits) {
+        const grouped = {
+          orig: { top: [], bottom: [] },
+          flip_full: { top: [], bottom: [] },
+          flip_start: { top: [], bottom: [] },
+          flip_odd_even: { top: [], bottom: [] },
+        };
+
+        const setTitle = document.createElement("h2");
+        setTitle.textContent = `🎯 예측 ${limit}개 세트`;
+        resultContainer.appendChild(setTitle);
+
+        const sectionMap = {};
+
+        for (const mode of modes) {
+          try {
+            const res = await fetch(`/predict?mode=${mode}&limit=${limit}`);
+            const data = await res.json();
+
+            const typeKey = mode.split("_").slice(1).join("_");
+            grouped[typeKey].top.push(...(data["상단값들"] || []).map(t => t["값"]));
+            grouped[typeKey].bottom.push(...(data["하단값들"] || []).map(t => t["값"]));
+
+            const sectionKey = `${getModeKey(mode)}_${limit}`;
+            if (!sectionMap[sectionKey]) {
+              const section = document.createElement("div");
+              section.className = "section";
+
+              const title = document.createElement("h2");
+              title.textContent = modeTitles[getModeKey(mode)];
+              section.appendChild(title);
+
+              const row = document.createElement("div");
+              row.className = "card-row";
+              section.appendChild(row);
+
+              resultContainer.appendChild(section);
+              sectionMap[sectionKey] = row;
+            }
+
+            sectionMap[sectionKey].appendChild(createCard(mode, data, limit));
+          } catch (e) {
+            console.error(`❌ 오류: ${mode} (${limit}) 예측 실패`, e);
+          }
+        }
+
+        const stats = {};
+        for (const group in grouped) {
+          stats[group] = {
+            top: getFrequency(grouped[group].top),
+            bottom: getFrequency(grouped[group].bottom)
+          };
+        }
+
+        renderGroupedSummary(`summary-${limit}`, stats, limit);
+      }
+    }
 
     function createCard(mode, data, limit) {
       const card = document.createElement("div");
@@ -89,47 +201,6 @@
       card.appendChild(bottomList);
 
       return card;
-    }
-
-    async function loadResults() {
-      const resultContainer = document.getElementById("results");
-      resultContainer.innerHTML = "";
-
-      for (const limit of limits) {
-        const setTitle = document.createElement("h2");
-        setTitle.textContent = `🎯 예측 ${limit}개 세트`;
-        resultContainer.appendChild(setTitle);
-
-        const sectionMap = {};
-
-        for (const mode of modes) {
-          try {
-            const res = await fetch(`/predict?mode=${mode}&limit=${limit}`);
-            const data = await res.json();
-
-            const sectionKey = `${getModeKey(mode)}_${limit}`;
-            if (!sectionMap[sectionKey]) {
-              const section = document.createElement("div");
-              section.className = "section";
-
-              const title = document.createElement("h2");
-              title.textContent = modeTitles[getModeKey(mode)];
-              section.appendChild(title);
-
-              const row = document.createElement("div");
-              row.className = "card-row";
-              section.appendChild(row);
-
-              resultContainer.appendChild(section);
-              sectionMap[sectionKey] = row;
-            }
-
-            sectionMap[sectionKey].appendChild(createCard(mode, data, limit));
-          } catch (e) {
-            console.error(`❌ 오류: ${mode} (${limit}) 예측 실패`, e);
-          }
-        }
-      }
     }
 
     loadResults();
