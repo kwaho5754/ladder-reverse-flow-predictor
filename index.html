@@ -32,8 +32,6 @@
 <body>
   <h1>🔮 사다리 블럭 예측 결과</h1>
 
-  <div id="grouped-summary-container"></div>
-
   <div id="results"></div>
 
   <script>
@@ -41,6 +39,8 @@
       "3block_orig", "3block_flip_full", "3block_flip_start", "3block_flip_odd_even",
       "4block_orig", "4block_flip_full", "4block_flip_start", "4block_flip_odd_even"
     ];
+
+    const limits = [4, 12];
 
     const modeTitles = {
       "3block": "3줄 블럭", "4block": "4줄 블럭"
@@ -53,7 +53,7 @@
 
     const getModeKey = (mode) => mode.split("_")[0];
 
-    function createCard(mode, data) {
+    function createCard(mode, data, limit) {
       const card = document.createElement("div");
       card.className = "card";
 
@@ -61,7 +61,7 @@
       const typeKey = mode.split("_").slice(1).join("_");
 
       const label = document.createElement("h3");
-      label.textContent = `${modeTitles[mkey]} (${transformLabel[typeKey]}) (회차 ${data["예측회차"]})`;
+      label.textContent = `${modeTitles[mkey]} (${transformLabel[typeKey]}) (회차 ${data["예측회차"]}) - ${limit}개 예측`;
       card.appendChild(label);
 
       const topLabel = document.createElement("h4");
@@ -91,103 +91,45 @@
       return card;
     }
 
-    function getFrequency(arr) {
-      const counter = {};
-      for (const item of arr) {
-        if (!item || item === "❌ 없음") continue;
-        counter[item] = (counter[item] || 0) + 1;
-      }
-      return counter;
-    }
-
-    function renderGroupedSummary(statsByGroup) {
-      const container = document.getElementById("grouped-summary-container");
-      container.innerHTML = "";
-
-      for (const group in statsByGroup) {
-        const box = document.createElement("div");
-        box.className = "summary-box";
-
-        const title = document.createElement("h2");
-        title.textContent = `📊 ${transformLabel[group]} 통계`;
-        box.appendChild(title);
-
-        const table = document.createElement("table");
-        table.innerHTML = `
-          <thead>
-            <tr><th>구분</th><th>값(횟수)</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>상단</td><td>${formatStat(statsByGroup[group].top)}</td></tr>
-            <tr><td>하단</td><td>${formatStat(statsByGroup[group].bottom)}</td></tr>
-          </tbody>
-        `;
-
-        box.appendChild(table);
-        container.appendChild(box);
-      }
-    }
-
-    function formatStat(counter) {
-      return Object.entries(counter)
-        .sort((a, b) => b[1] - a[1])
-        .map(([k, v]) => `${k}(${v})`)
-        .join(", ");
-    }
-
     async function loadResults() {
       const resultContainer = document.getElementById("results");
       resultContainer.innerHTML = "";
-      const sectionMap = {};
 
-      const grouped = {
-        orig: { top: [], bottom: [] },
-        flip_full: { top: [], bottom: [] },
-        flip_start: { top: [], bottom: [] },
-        flip_odd_even: { top: [], bottom: [] },
-      };
+      for (const limit of limits) {
+        const setTitle = document.createElement("h2");
+        setTitle.textContent = `🎯 예측 ${limit}개 세트`;
+        resultContainer.appendChild(setTitle);
 
-      for (const mode of modes) {
-        try {
-          const res = await fetch(`/predict?mode=${mode}`);
-          const data = await res.json();
+        const sectionMap = {};
 
-          const typeKey = mode.split("_").slice(1).join("_");
-          grouped[typeKey].top.push(...(data["상단값들"] || []).map(t => t["값"]));
-          grouped[typeKey].bottom.push(...(data["하단값들"] || []).map(t => t["값"]));
+        for (const mode of modes) {
+          try {
+            const res = await fetch(`/predict?mode=${mode}&limit=${limit}`);
+            const data = await res.json();
 
-          const sectionKey = getModeKey(mode);
-          if (!sectionMap[sectionKey]) {
-            const section = document.createElement("div");
-            section.className = "section";
+            const sectionKey = `${getModeKey(mode)}_${limit}`;
+            if (!sectionMap[sectionKey]) {
+              const section = document.createElement("div");
+              section.className = "section";
 
-            const title = document.createElement("h2");
-            title.textContent = modeTitles[sectionKey];
-            section.appendChild(title);
+              const title = document.createElement("h2");
+              title.textContent = modeTitles[getModeKey(mode)];
+              section.appendChild(title);
 
-            const row = document.createElement("div");
-            row.className = "card-row";
-            section.appendChild(row);
+              const row = document.createElement("div");
+              row.className = "card-row";
+              section.appendChild(row);
 
-            resultContainer.appendChild(section);
-            sectionMap[sectionKey] = row;
+              resultContainer.appendChild(section);
+              sectionMap[sectionKey] = row;
+            }
+
+            sectionMap[sectionKey].appendChild(createCard(mode, data, limit));
+          } catch (e) {
+            console.error(`❌ 오류: ${mode} (${limit}) 예측 실패`, e);
           }
-
-          sectionMap[sectionKey].appendChild(createCard(mode, data));
-        } catch (e) {
-          console.error(`❌ 오류: ${mode} 예측 결과 불러오기 실패`, e);
         }
       }
-
-      const stats = {};
-      for (const group in grouped) {
-        stats[group] = {
-          top: getFrequency(grouped[group].top),
-          bottom: getFrequency(grouped[group].bottom)
-        };
-      }
-
-      renderGroupedSummary(stats);
     }
 
     loadResults();
