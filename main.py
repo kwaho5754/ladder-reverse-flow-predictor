@@ -94,7 +94,7 @@ def predict():
             .select("*") \
             .order("reg_date", desc=True) \
             .order("date_round", desc=True) \
-            .limit(3000) \
+            .limit(5000) \
             .execute()
 
         raw = response.data
