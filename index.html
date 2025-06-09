@@ -107,9 +107,11 @@
             } else if (limit === 2) {
               displayTop = allTop.slice(1, 2);
               displayBottom = allBottom.slice(1, 2);
+            } else if (limit === 3) {
+              displayTop = allTop.slice(2, 3);
+              displayBottom = allBottom.slice(2, 3);
             }
 
-            // ⬇️ 통계용 집계도 displayTop/Bottom 기준으로 제한
             grouped[typeKey].top.push(...displayTop.map(t => t["값"]));
             grouped[typeKey].bottom.push(...displayBottom.map(t => t["값"]));
 
