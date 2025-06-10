@@ -60,7 +60,7 @@ def find_all_matches(block, full_data, existing_matches_indices=None):
         if candidate == block:
             top_index = i - 1
             top_pred = full_data[top_index] if top_index >= 0 else "❌ 없음"
-            if (i + 1) != 1:  # ⬅ 이 조건 추가
+        if (i + 1) != 1:  # ⬅ 이 조건 추가
             top_matches.append({
                 "값": top_pred,
                 "블럭": ">".join(block),
@@ -69,7 +69,7 @@ def find_all_matches(block, full_data, existing_matches_indices=None):
 
             bottom_index = i + block_len
             bottom_pred = full_data[bottom_index] if bottom_index < len(full_data) else "❌ 없음"
-            if (i + 1) != 1:  # ⬅ 이 조건 추가
+        if (i + 1) != 1:  # ⬅ 이 조건 추가
             bottom_matches.append({
                 "값": bottom_pred,
                 "블럭": ">".join(block),
