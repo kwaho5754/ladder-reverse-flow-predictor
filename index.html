@@ -43,6 +43,8 @@
   <div class="summary-section" id="bottom-summaries"></div>
   <div class="summary-section" id="top-total"></div>
   <div class="summary-section" id="bottom-total"></div>
+  <div class="summary-section" id="top-merged"></div>
+  <div class="summary-section" id="bottom-merged"></div>
   <div id="results"></div>
 
   <script>
@@ -86,12 +88,16 @@
       const bottomContainer = document.getElementById("bottom-summaries");
       const topTotalContainer = document.getElementById("top-total");
       const bottomTotalContainer = document.getElementById("bottom-total");
+      const topMergedContainer = document.getElementById("top-merged");
+      const bottomMergedContainer = document.getElementById("bottom-merged");
 
       resultContainer.innerHTML = "";
       topContainer.innerHTML = "";
       bottomContainer.innerHTML = "";
       topTotalContainer.innerHTML = "";
       bottomTotalContainer.innerHTML = "";
+      topMergedContainer.innerHTML = "";
+      bottomMergedContainer.innerHTML = "";
 
       const totalStats = {
         orig: { top: [], bottom: [] },
@@ -172,6 +178,7 @@
         bottomContainer.appendChild(createSummaryBox(limit, stats, "bottom"));
       }
 
+      // 합산 요약 박스
       topTotalContainer.appendChild(createSummaryBox("합산", {
         orig: { top: getFrequency(totalStats.orig.top) },
         flip_full: { top: getFrequency(totalStats.flip_full.top) },
@@ -185,6 +192,13 @@
         flip_start: { bottom: getFrequency(totalStats.flip_start.bottom) },
         flip_odd_even: { bottom: getFrequency(totalStats.flip_odd_even.bottom) }
       }, "bottom"));
+
+      // 전체 통합
+      const mergedTop = [...totalStats.orig.top, ...totalStats.flip_full.top, ...totalStats.flip_start.top, ...totalStats.flip_odd_even.top];
+      const mergedBottom = [...totalStats.orig.bottom, ...totalStats.flip_full.bottom, ...totalStats.flip_start.bottom, ...totalStats.flip_odd_even.bottom];
+
+      topMergedContainer.appendChild(createMergedSummaryBox("전체 상단값 통합 요약", mergedTop));
+      bottomMergedContainer.appendChild(createMergedSummaryBox("전체 하단값 통합 요약", mergedBottom));
     }
 
     function createSummaryBox(limit, statsByGroup, type) {
@@ -201,6 +215,28 @@
         <tbody>
           ${Object.entries(statsByGroup).map(([group, stat]) =>
             `<tr><td>${transformLabel[group]}</td><td>${formatStat(stat[type])}</td></tr>`
+          ).join("")}
+        </tbody>
+      `;
+      box.appendChild(table);
+      return box;
+    }
+
+    function createMergedSummaryBox(titleText, values) {
+      const box = document.createElement("div");
+      box.className = "summary-box";
+
+      const title = document.createElement("h2");
+      title.textContent = `📊 예측 ${titleText}`;
+      box.appendChild(title);
+
+      const counter = getFrequency(values);
+      const table = document.createElement("table");
+      table.innerHTML = `
+        <thead><tr><th>값</th><th>출현횟수</th></tr></thead>
+        <tbody>
+          ${Object.entries(counter).sort((a,b) => b[1]-a[1]).map(([val, count]) =>
+            `<tr><td>${val}</td><td>${count}</td></tr>`
           ).join("")}
         </tbody>
       `;
