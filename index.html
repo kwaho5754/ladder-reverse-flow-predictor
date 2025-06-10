@@ -41,6 +41,8 @@
 
   <div class="summary-section" id="top-summaries"></div>
   <div class="summary-section" id="bottom-summaries"></div>
+  <div class="summary-section" id="top-total"></div>
+  <div class="summary-section" id="bottom-total"></div>
   <div id="results"></div>
 
   <script>
@@ -82,9 +84,21 @@
       const resultContainer = document.getElementById("results");
       const topContainer = document.getElementById("top-summaries");
       const bottomContainer = document.getElementById("bottom-summaries");
+      const topTotalContainer = document.getElementById("top-total");
+      const bottomTotalContainer = document.getElementById("bottom-total");
+
       resultContainer.innerHTML = "";
       topContainer.innerHTML = "";
       bottomContainer.innerHTML = "";
+      topTotalContainer.innerHTML = "";
+      bottomTotalContainer.innerHTML = "";
+
+      const totalStats = {
+        orig: { top: [], bottom: [] },
+        flip_full: { top: [], bottom: [] },
+        flip_start: { top: [], bottom: [] },
+        flip_odd_even: { top: [], bottom: [] },
+      };
 
       for (const limit of limits) {
         const grouped = {
@@ -114,6 +128,9 @@
 
             grouped[typeKey].top.push(...displayTop.map(t => t["값"]));
             grouped[typeKey].bottom.push(...displayBottom.map(t => t["값"]));
+
+            totalStats[typeKey].top.push(...displayTop.map(t => t["값"]));
+            totalStats[typeKey].bottom.push(...displayBottom.map(t => t["값"]));
 
             const freqTop = getFrequency(grouped[typeKey].top);
             const freqBottom = getFrequency(grouped[typeKey].bottom);
@@ -154,6 +171,20 @@
         topContainer.appendChild(createSummaryBox(limit, stats, "top"));
         bottomContainer.appendChild(createSummaryBox(limit, stats, "bottom"));
       }
+
+      topTotalContainer.appendChild(createSummaryBox("합산", {
+        orig: { top: getFrequency(totalStats.orig.top) },
+        flip_full: { top: getFrequency(totalStats.flip_full.top) },
+        flip_start: { top: getFrequency(totalStats.flip_start.top) },
+        flip_odd_even: { top: getFrequency(totalStats.flip_odd_even.top) }
+      }, "top"));
+
+      bottomTotalContainer.appendChild(createSummaryBox("합산", {
+        orig: { bottom: getFrequency(totalStats.orig.bottom) },
+        flip_full: { bottom: getFrequency(totalStats.flip_full.bottom) },
+        flip_start: { bottom: getFrequency(totalStats.flip_start.bottom) },
+        flip_odd_even: { bottom: getFrequency(totalStats.flip_odd_even.bottom) }
+      }, "bottom"));
     }
 
     function createSummaryBox(limit, statsByGroup, type) {
