@@ -7,14 +7,14 @@
     body { font-family: "Noto Sans KR", sans-serif; background: #f4f7ff; padding: 2rem; }
     h1 { font-size: 1.8rem; text-align: center; margin-bottom: 2rem; }
     .summary-box {
-      max-width: 800px; margin: 0 auto 2rem auto;
+      max-width: 100%; margin: 0 auto 2rem auto;
       background: #fff; border-radius: 10px;
       box-shadow: 0 0 6px rgba(0,0,0,0.1); padding: 1rem;
     }
     .summary-box h2 { text-align: center; margin-bottom: 1rem; }
     .summary-box table { width: 100%; border-collapse: collapse; }
     .summary-box th, .summary-box td {
-      padding: 0.6rem; border-bottom: 1px solid #ddd; text-align: center;
+      padding: 0.6rem; border: 1px solid #ddd; text-align: center;
     }
     .summary-box th { background: #eef2ff; }
     .section { margin-bottom: 3rem; }
@@ -32,9 +32,7 @@
 <body>
   <h1>🔮 사다리 블럭 예측 결과</h1>
 
-  <div id="summary-1"></div>
-  <div id="summary-2"></div>
-  <div id="summary-3"></div>
+  <div id="summary-box"></div>
   <div id="results"></div>
 
   <script>
@@ -43,7 +41,7 @@
       "4block_orig", "4block_flip_full", "4block_flip_start", "4block_flip_odd_even"
     ];
 
-    const limits = [1, 2, 3];
+    const limits = [1, 2, 3, 4, 5, 6];
 
     const modeTitles = {
       "3block": "3줄 블럭", "4block": "4줄 블럭"
@@ -75,6 +73,7 @@
     async function loadResults() {
       const resultContainer = document.getElementById("results");
       resultContainer.innerHTML = "";
+      const allStats = {};
 
       for (const limit of limits) {
         const grouped = {
@@ -99,18 +98,8 @@
             const allTop = data["상단값들"] || [];
             const allBottom = data["하단값들"] || [];
 
-            let displayTop = allTop;
-            let displayBottom = allBottom;
-            if (limit === 1) {
-              displayTop = allTop.slice(0, 1);
-              displayBottom = allBottom.slice(0, 1);
-            } else if (limit === 2) {
-              displayTop = allTop.slice(1, 2);
-              displayBottom = allBottom.slice(1, 2);
-            } else if (limit === 3) {
-              displayTop = allTop.slice(2, 3);
-              displayBottom = allBottom.slice(2, 3);
-            }
+            let displayTop = allTop.slice(limit - 1, limit);
+            let displayBottom = allBottom.slice(limit - 1, limit);
 
             grouped[typeKey].top.push(...displayTop.map(t => t["값"]));
             grouped[typeKey].bottom.push(...displayBottom.map(t => t["값"]));
@@ -143,54 +132,41 @@
           }
         }
 
-        const stats = {};
-        for (const group in grouped) {
-          stats[group] = {
-            top: getFrequency(grouped[group].top),
-            bottom: getFrequency(grouped[group].bottom)
-          };
-        }
-
-        renderGroupedSummary(`summary-${limit}`, stats, limit);
+        allStats[limit] = grouped;
       }
+
+      renderGroupedSummary("summary-box", allStats);
     }
 
-    function renderGroupedSummary(containerId, statsByGroup, limit) {
+    function renderGroupedSummary(containerId, allStats) {
       const container = document.getElementById(containerId);
       if (!container) return;
       container.innerHTML = "";
 
-      const titleTop = document.createElement("h2");
-      titleTop.textContent = `📊 예측 ${limit}개 상단 요약`;
-      container.appendChild(titleTop);
+      const table = document.createElement("table");
+      table.className = "summary-box";
 
-      const topTable = document.createElement("table");
-      topTable.className = "summary-box";
-      topTable.innerHTML = `
-        <thead><tr><th>변형</th><th>상단값(횟수)</th></tr></thead>
-        <tbody>
-          ${Object.entries(statsByGroup).map(([group, stat]) =>
-            `<tr><td>${transformLabel[group]}</td><td>${formatStat(stat.top)}</td></tr>`
-          ).join("")}
-        </tbody>
+      const headRow = `<tr>
+        <th>변형</th>
+        ${limits.map(l => `<th>세트 ${l}</th>`).join("")}
+      </tr>`;
+
+      const bodyRows = Object.keys(transformLabel).map(key => {
+        const row = [`<td>${transformLabel[key]}</td>`];
+        for (const l of limits) {
+          const stats = allStats[l]?.[key]?.top || [];
+          const formatted = formatStat(getFrequency(stats));
+          row.push(`<td>${formatted}</td>`);
+        }
+        return `<tr>${row.join("")}</tr>`;
+      });
+
+      table.innerHTML = `
+        <thead>${headRow}</thead>
+        <tbody>${bodyRows.join("")}</tbody>
       `;
-      container.appendChild(topTable);
 
-      const titleBottom = document.createElement("h2");
-      titleBottom.textContent = `📊 예측 ${limit}개 하단 요약`;
-      container.appendChild(titleBottom);
-
-      const bottomTable = document.createElement("table");
-      bottomTable.className = "summary-box";
-      bottomTable.innerHTML = `
-        <thead><tr><th>변형</th><th>하단값(횟수)</th></tr></thead>
-        <tbody>
-          ${Object.entries(statsByGroup).map(([group, stat]) =>
-            `<tr><td>${transformLabel[group]}</td><td>${formatStat(stat.bottom)}</td></tr>`
-          ).join("")}
-        </tbody>
-      `;
-      container.appendChild(bottomTable);
+      container.appendChild(table);
     }
 
     function createCard(mode, data, limit, topListData, bottomListData, freqTop, freqBottom) {
@@ -201,7 +177,7 @@
       const typeKey = mode.split("_").slice(1).join("_");
 
       const label = document.createElement("h3");
-      label.textContent = `${modeTitles[mkey]} (${transformLabel[typeKey]}) (회차 ${data["예측회차"]}) - ${limit}개 중 표시`;
+      label.textContent = `${modeTitles[mkey]} (${transformLabel[typeKey]}) (회차 ${data["예측회차"]}) - ${limit}개 중 ${limit}번째`;
       card.appendChild(label);
 
       const topLabel = document.createElement("h4");
