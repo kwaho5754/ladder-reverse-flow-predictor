@@ -68,6 +68,7 @@ def find_all_matches(block, full_data, existing_matches_indices=None):
 
             bottom_index = i + block_len
             bottom_pred = full_data[bottom_index] if bottom_index < len(full_data) else "❌ 없음"
+        if (i + 1) != 1:  # ⬅ 이 조건 추가
             bottom_matches.append({
                 "값": bottom_pred,
                 "블럭": ">".join(block),
