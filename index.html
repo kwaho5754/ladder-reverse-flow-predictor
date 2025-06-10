@@ -6,12 +6,19 @@
   <style>
     body { font-family: "Noto Sans KR", sans-serif; background: #f4f7ff; padding: 2rem; }
     h1 { font-size: 1.8rem; text-align: center; margin-bottom: 2rem; }
+    .summary-section {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 3rem;
+    }
     .summary-box {
-      max-width: 800px; margin: 0 auto 2rem auto;
       background: #fff; border-radius: 10px;
       box-shadow: 0 0 6px rgba(0,0,0,0.1); padding: 1rem;
+      min-width: 300px; flex: 1 1 300px;
     }
-    .summary-box h2 { text-align: center; margin-bottom: 1rem; }
+    .summary-box h2 { text-align: center; margin-bottom: 1rem; font-size: 1.1rem; }
     .summary-box table { width: 100%; border-collapse: collapse; }
     .summary-box th, .summary-box td {
       padding: 0.6rem; border-bottom: 1px solid #ddd; text-align: center;
@@ -32,12 +39,8 @@
 <body>
   <h1>🔮 사다리 블럭 예측 결과</h1>
 
-  <div id="summary-1"></div>
-  <div id="summary-2"></div>
-  <div id="summary-3"></div>
-  <div id="summary-4"></div>
-  <div id="summary-5"></div>
-  <div id="summary-6"></div>
+  <div class="summary-section" id="top-summaries"></div>
+  <div class="summary-section" id="bottom-summaries"></div>
   <div id="results"></div>
 
   <script>
@@ -77,7 +80,11 @@
 
     async function loadResults() {
       const resultContainer = document.getElementById("results");
+      const topContainer = document.getElementById("top-summaries");
+      const bottomContainer = document.getElementById("bottom-summaries");
       resultContainer.innerHTML = "";
+      topContainer.innerHTML = "";
+      bottomContainer.innerHTML = "";
 
       for (const limit of limits) {
         const grouped = {
@@ -144,46 +151,30 @@
           };
         }
 
-        renderGroupedSummary(`summary-${limit}`, stats, limit);
+        topContainer.appendChild(createSummaryBox(limit, stats, "top"));
+        bottomContainer.appendChild(createSummaryBox(limit, stats, "bottom"));
       }
     }
 
-    function renderGroupedSummary(containerId, statsByGroup, limit) {
-      const container = document.getElementById(containerId);
-      if (!container) return;
-      container.innerHTML = "";
+    function createSummaryBox(limit, statsByGroup, type) {
+      const box = document.createElement("div");
+      box.className = "summary-box";
 
-      const titleTop = document.createElement("h2");
-      titleTop.textContent = `📊 예측 ${limit}개 상단 요약`;
-      container.appendChild(titleTop);
+      const title = document.createElement("h2");
+      title.textContent = `📊 예측 ${limit}개 ${type === "top" ? "상단" : "하단"} 요약`;
+      box.appendChild(title);
 
-      const topTable = document.createElement("table");
-      topTable.className = "summary-box";
-      topTable.innerHTML = `
-        <thead><tr><th>변형</th><th>상단값(횟수)</th></tr></thead>
+      const table = document.createElement("table");
+      table.innerHTML = `
+        <thead><tr><th>변형</th><th>${type === "top" ? "상단값" : "하단값"}(횟수)</th></tr></thead>
         <tbody>
           ${Object.entries(statsByGroup).map(([group, stat]) =>
-            `<tr><td>${transformLabel[group]}</td><td>${formatStat(stat.top)}</td></tr>`
+            `<tr><td>${transformLabel[group]}</td><td>${formatStat(stat[type])}</td></tr>`
           ).join("")}
         </tbody>
       `;
-      container.appendChild(topTable);
-
-      const titleBottom = document.createElement("h2");
-      titleBottom.textContent = `📊 예측 ${limit}개 하단 요약`;
-      container.appendChild(titleBottom);
-
-      const bottomTable = document.createElement("table");
-      bottomTable.className = "summary-box";
-      bottomTable.innerHTML = `
-        <thead><tr><th>변형</th><th>하단값(횟수)</th></tr></thead>
-        <tbody>
-          ${Object.entries(statsByGroup).map(([group, stat]) =>
-            `<tr><td>${transformLabel[group]}</td><td>${formatStat(stat.bottom)}</td></tr>`
-          ).join("")}
-        </tbody>
-      `;
-      container.appendChild(bottomTable);
+      box.appendChild(table);
+      return box;
     }
 
     function createCard(mode, data, limit, topListData, bottomListData, freqTop, freqBottom) {
