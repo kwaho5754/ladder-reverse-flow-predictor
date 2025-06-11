@@ -6,22 +6,15 @@
   <style>
     body { font-family: "Noto Sans KR", sans-serif; background: #f4f7ff; padding: 2rem; }
     h1 { font-size: 1.8rem; text-align: center; margin-bottom: 2rem; }
-    .summary-section {
-      display: flex;
-      gap: 1.5rem;
-      flex-wrap: wrap;
-      justify-content: center;
-      margin-bottom: 3rem;
-    }
     .summary-box {
+      max-width: 1000px; margin: 0 auto 2rem auto;
       background: #fff; border-radius: 10px;
       box-shadow: 0 0 6px rgba(0,0,0,0.1); padding: 1rem;
-      min-width: 300px; flex: 1 1 300px;
     }
-    .summary-box h2 { text-align: center; margin-bottom: 1rem; font-size: 1.1rem; }
+    .summary-box h2 { text-align: center; margin-bottom: 1rem; }
     .summary-box table { width: 100%; border-collapse: collapse; }
     .summary-box th, .summary-box td {
-      padding: 0.6rem; border-bottom: 1px solid #ddd; text-align: center;
+      padding: 0.6rem; border-bottom: 1px solid #ddd; text-align: left;
     }
     .summary-box th { background: #eef2ff; }
     .section { margin-bottom: 3rem; }
@@ -39,12 +32,12 @@
 <body>
   <h1>🔮 사다리 블럭 예측 결과</h1>
 
-  <div class="summary-section" id="top-summaries"></div>
-  <div class="summary-section" id="bottom-summaries"></div>
-  <div class="summary-section" id="top-total"></div>
-  <div class="summary-section" id="bottom-total"></div>
-  <div class="summary-section" id="top-merged"></div>
-  <div class="summary-section" id="bottom-merged"></div>
+  <div id="summary-1"></div>
+  <div id="summary-2"></div>
+  <div id="summary-3"></div>
+  <div id="summary-4"></div>
+  <div id="summary-5"></div>
+  <div id="summary-6"></div>
   <div id="results"></div>
 
   <script>
@@ -65,6 +58,7 @@
     };
 
     const getModeKey = (mode) => mode.split("_")[0];
+    const getTransformKey = (mode) => mode.split("_").slice(1).join("_");
 
     function formatStat(counter) {
       return Object.entries(counter)
@@ -73,38 +67,12 @@
         .join(", ");
     }
 
-    function getFrequency(arr) {
-      const counter = {};
-      for (const item of arr) {
-        if (!item || item === "❌ 없음") continue;
-        counter[item] = (counter[item] || 0) + 1;
-      }
-      return counter;
-    }
-
     async function loadResults() {
       const resultContainer = document.getElementById("results");
-      const topContainer = document.getElementById("top-summaries");
-      const bottomContainer = document.getElementById("bottom-summaries");
-      const topTotalContainer = document.getElementById("top-total");
-      const bottomTotalContainer = document.getElementById("bottom-total");
-      const topMergedContainer = document.getElementById("top-merged");
-      const bottomMergedContainer = document.getElementById("bottom-merged");
-
       resultContainer.innerHTML = "";
-      topContainer.innerHTML = "";
-      bottomContainer.innerHTML = "";
-      topTotalContainer.innerHTML = "";
-      bottomTotalContainer.innerHTML = "";
-      topMergedContainer.innerHTML = "";
-      bottomMergedContainer.innerHTML = "";
 
-      const totalStats = {
-        orig: { top: [], bottom: [] },
-        flip_full: { top: [], bottom: [] },
-        flip_start: { top: [], bottom: [] },
-        flip_odd_even: { top: [], bottom: [] },
-      };
+      const globalTopTrack = {};
+      const globalBottomTrack = {};
 
       for (const limit of limits) {
         const grouped = {
@@ -114,174 +82,96 @@
           flip_odd_even: { top: [], bottom: [] },
         };
 
-        const setTitle = document.createElement("h2");
-        setTitle.textContent = `🎯 예측 ${limit}개 세트`;
-        resultContainer.appendChild(setTitle);
-
-        const sectionMap = {};
-
         for (const mode of modes) {
           try {
             const res = await fetch(`/predict?mode=${mode}&limit=${limit}`);
             const data = await res.json();
 
-            const typeKey = mode.split("_").slice(1).join("_");
-            const allTop = data["상단값들"] || [];
-            const allBottom = data["하단값들"] || [];
+            const typeKey = getTransformKey(mode);
+            const topData = data["상단값들"] || [];
+            const bottomData = data["하단값들"] || [];
 
-            const displayTop = allTop.slice(limit - 1, limit);
-            const displayBottom = allBottom.slice(limit - 1, limit);
+            const topItem = topData[limit - 1];
+            const bottomItem = bottomData[limit - 1];
 
-            grouped[typeKey].top.push(...displayTop.map(t => t["값"]));
-            grouped[typeKey].bottom.push(...displayBottom.map(t => t["값"]));
-
-            totalStats[typeKey].top.push(...displayTop.map(t => t["값"]));
-            totalStats[typeKey].bottom.push(...displayBottom.map(t => t["값"]));
-
-            const freqTop = getFrequency(grouped[typeKey].top);
-            const freqBottom = getFrequency(grouped[typeKey].bottom);
-
-            const sectionKey = `${getModeKey(mode)}_${limit}`;
-            if (!sectionMap[sectionKey]) {
-              const section = document.createElement("div");
-              section.className = "section";
-
-              const title = document.createElement("h2");
-              title.textContent = modeTitles[getModeKey(mode)];
-              section.appendChild(title);
-
-              const row = document.createElement("div");
-              row.className = "card-row";
-              section.appendChild(row);
-
-              resultContainer.appendChild(section);
-              sectionMap[sectionKey] = row;
+            if (topItem?.값) {
+              grouped[typeKey].top.push(topItem.값);
+              globalTopTrack[topItem.값] = globalTopTrack[topItem.값] || [];
+              globalTopTrack[topItem.값].push({ 순번: topItem.순번, mode, limit });
             }
 
-            sectionMap[sectionKey].appendChild(
-              createCard(mode, data, limit, displayTop, displayBottom, freqTop, freqBottom)
-            );
+            if (bottomItem?.값) {
+              grouped[typeKey].bottom.push(bottomItem.값);
+              globalBottomTrack[bottomItem.값] = globalBottomTrack[bottomItem.값] || [];
+              globalBottomTrack[bottomItem.값].push({ 순번: bottomItem.순번, mode, limit });
+            }
           } catch (e) {
-            console.error(`❌ 오류: ${mode} (${limit}) 예측 실패`, e);
+            console.error("예측 실패:", mode, limit, e);
           }
         }
 
-        const stats = {};
-        for (const group in grouped) {
-          stats[group] = {
-            top: getFrequency(grouped[group].top),
-            bottom: getFrequency(grouped[group].bottom)
-          };
-        }
-
-        topContainer.appendChild(createSummaryBox(limit, stats, "top"));
-        bottomContainer.appendChild(createSummaryBox(limit, stats, "bottom"));
+        renderGroupedSummary(`summary-${limit}`, grouped);
       }
 
-      // 합산 요약 박스
-      topTotalContainer.appendChild(createSummaryBox("합산", {
-        orig: { top: getFrequency(totalStats.orig.top) },
-        flip_full: { top: getFrequency(totalStats.flip_full.top) },
-        flip_start: { top: getFrequency(totalStats.flip_start.top) },
-        flip_odd_even: { top: getFrequency(totalStats.flip_odd_even.top) }
-      }, "top"));
-
-      bottomTotalContainer.appendChild(createSummaryBox("합산", {
-        orig: { bottom: getFrequency(totalStats.orig.bottom) },
-        flip_full: { bottom: getFrequency(totalStats.flip_full.bottom) },
-        flip_start: { bottom: getFrequency(totalStats.flip_start.bottom) },
-        flip_odd_even: { bottom: getFrequency(totalStats.flip_odd_even.bottom) }
-      }, "bottom"));
-
-      // 전체 통합
-      const mergedTop = [...totalStats.orig.top, ...totalStats.flip_full.top, ...totalStats.flip_start.top, ...totalStats.flip_odd_even.top];
-      const mergedBottom = [...totalStats.orig.bottom, ...totalStats.flip_full.bottom, ...totalStats.flip_start.bottom, ...totalStats.flip_odd_even.bottom];
-
-      topMergedContainer.appendChild(createMergedSummaryBox("전체 상단값 통합 요약", mergedTop));
-      bottomMergedContainer.appendChild(createMergedSummaryBox("전체 하단값 통합 요약", mergedBottom));
+      renderGlobalSummary("results", globalTopTrack, globalBottomTrack);
     }
 
-    function createSummaryBox(limit, statsByGroup, type) {
-      const box = document.createElement("div");
-      box.className = "summary-box";
+    function renderGroupedSummary(containerId, grouped) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      container.innerHTML = "";
 
-      const title = document.createElement("h2");
-      title.textContent = `📊 예측 ${limit}개 ${type === "top" ? "상단" : "하단"} 요약`;
-      box.appendChild(title);
-
-      const table = document.createElement("table");
-      table.innerHTML = `
-        <thead><tr><th>변형</th><th>${type === "top" ? "상단값" : "하단값"}(횟수)</th></tr></thead>
-        <tbody>
-          ${Object.entries(statsByGroup).map(([group, stat]) =>
-            `<tr><td>${transformLabel[group]}</td><td>${formatStat(stat[type])}</td></tr>`
-          ).join("")}
-        </tbody>
-      `;
-      box.appendChild(table);
-      return box;
-    }
-
-    function createMergedSummaryBox(titleText, values) {
-      const box = document.createElement("div");
-      box.className = "summary-box";
-
-      const title = document.createElement("h2");
-      title.textContent = `📊 예측 ${titleText}`;
-      box.appendChild(title);
-
-      const counter = getFrequency(values);
-      const table = document.createElement("table");
-      table.innerHTML = `
-        <thead><tr><th>값</th><th>출현횟수</th></tr></thead>
-        <tbody>
-          ${Object.entries(counter).sort((a,b) => b[1]-a[1]).map(([val, count]) =>
-            `<tr><td>${val}</td><td>${count}</td></tr>`
-          ).join("")}
-        </tbody>
-      `;
-      box.appendChild(table);
-      return box;
-    }
-
-    function createCard(mode, data, limit, topListData, bottomListData, freqTop, freqBottom) {
-      const card = document.createElement("div");
-      card.className = "card";
-
-      const mkey = getModeKey(mode);
-      const typeKey = mode.split("_").slice(1).join("_");
-
-      const label = document.createElement("h3");
-      label.textContent = `${modeTitles[mkey]} (${transformLabel[typeKey]}) (회차 ${data["예측회차"]}) - ${limit}개 중 표시`;
-      card.appendChild(label);
-
-      const topLabel = document.createElement("h4");
-      topLabel.textContent = "🔺 상단값 예측";
-      card.appendChild(topLabel);
-
-      const topList = document.createElement("ol");
-      for (const match of topListData) {
-        const count = freqTop[match["값"]] || 0;
-        const item = document.createElement("li");
-        item.textContent = `${match["값"]} | 블럭: ${match["블럭"]} | 순번: ${match["순번"]} | 출현: ${count}회`;
-        topList.appendChild(item);
+      for (const [type, values] of Object.entries(grouped)) {
+        const div = document.createElement("div");
+        div.className = "summary-box";
+        div.innerHTML = `
+          <h2>📊 ${transformLabel[type]} 변형 요약</h2>
+          <table>
+            <thead><tr><th>구분</th><th>상단값</th><th>하단값</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>값 목록</td>
+                <td>${formatStat(getFrequency(values.top))}</td>
+                <td>${formatStat(getFrequency(values.bottom))}</td>
+              </tr>
+            </tbody>
+          </table>
+        `;
+        container.appendChild(div);
       }
-      card.appendChild(topList);
+    }
 
-      const bottomLabel = document.createElement("h4");
-      bottomLabel.textContent = "🔻 하단값 예측";
-      card.appendChild(bottomLabel);
+    function renderGlobalSummary(containerId, topTrack, bottomTrack) {
+      const container = document.getElementById(containerId);
 
-      const bottomList = document.createElement("ol");
-      for (const match of bottomListData) {
-        const count = freqBottom[match["값"]] || 0;
-        const item = document.createElement("li");
-        item.textContent = `${match["값"]} | 블럭: ${match["블럭"]} | 순번: ${match["순번"]} | 출현: ${count}회`;
-        bottomList.appendChild(item);
+      const createEntryBlock = (label, track) => {
+        const box = document.createElement("div");
+        box.className = "summary-box";
+
+        let html = `<h2>${label}</h2><table><thead><tr><th>값</th><th>총 출현</th><th>순번 상세</th></tr></thead><tbody>`;
+
+        Object.entries(track).forEach(([val, list]) => {
+          const sorted = list.sort((a, b) => a.순번 - b.순번);
+          const rows = sorted.map(e => `순번 ${e.순번} (${e.mode}, limit ${e.limit})`).join("<br>");
+          html += `<tr><td>${val}</td><td>${list.length}</td><td>${rows}</td></tr>`;
+        });
+
+        html += `</tbody></table>`;
+        box.innerHTML = html;
+        return box;
+      };
+
+      container.appendChild(createEntryBlock("📊 예측 전체 상단값 순번 추적", topTrack));
+      container.appendChild(createEntryBlock("📊 예측 전체 하단값 순번 추적", bottomTrack));
+    }
+
+    function getFrequency(arr) {
+      const counter = {};
+      for (const item of arr) {
+        if (!item) continue;
+        counter[item] = (counter[item] || 0) + 1;
       }
-      card.appendChild(bottomList);
-
-      return card;
+      return counter;
     }
 
     loadResults();
