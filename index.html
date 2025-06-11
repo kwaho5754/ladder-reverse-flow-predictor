@@ -5,7 +5,15 @@
   <title>사다리 블럭 예측 결과</title>
   <style>
     body { font-family: "Noto Sans KR", sans-serif; background: #f4f7ff; padding: 2rem; }
-    h1 { font-size: 1.8rem; text-align: center; margin-bottom: 2rem; }
+    h1 { font-size: 1.8rem; text-align: center; margin-bottom: 2rem; position: relative; }
+    #round-info {
+      position: absolute;
+      top: 0; right: 1rem;
+      font-size: 1rem; color: #444;
+      background: rgba(255,255,255,0.8); padding: 0.3rem 0.8rem;
+      border-radius: 0.6rem;
+      box-shadow: 0 0 4px rgba(0,0,0,0.1);
+    }
     .summary-box {
       max-width: 1000px; margin: 0 auto 2rem auto;
       background: #fff; border-radius: 10px;
@@ -30,7 +38,10 @@
   </style>
 </head>
 <body>
-  <h1>🔮 사다리 블럭 예측 결과</h1>
+  <h1>
+    🔮 사다리 블럭 예측 결과
+    <span id="round-info">예측 회차: 불러오는 중...</span>
+  </h1>
 
   <div id="summary-1"></div>
   <div id="summary-2"></div>
@@ -41,6 +52,17 @@
   <div id="results"></div>
 
   <script>
+    // 예측 회차 표시: 최신 순번 + 1
+    async function loadLatestRound() {
+      try {
+        const res = await fetch('/latest_round');
+        const data = await res.json();
+        document.getElementById("round-info").textContent = `예측 회차: ${data.round}회`;
+      } catch (e) {
+        console.error("예측 회차 불러오기 실패", e);
+      }
+    }
+
     const modes = [
       "3block_orig", "3block_flip_full", "3block_flip_start", "3block_flip_odd_even",
       "4block_orig", "4block_flip_full", "4block_flip_start", "4block_flip_odd_even"
@@ -127,6 +149,7 @@
       `;
     }
 
+    loadLatestRound();
     loadResults();
   </script>
 </body>
