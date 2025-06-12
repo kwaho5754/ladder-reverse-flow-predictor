@@ -191,6 +191,21 @@ def predict_top3_summary():
     except Exception as e:
         return jsonify({"error": str(e)})
 
+# ✅ 추가된 예측 회차 API
+@app.route("/latest_round")
+def latest_round():
+    try:
+        response = supabase.table(SUPABASE_TABLE) \
+            .select("date_round") \
+            .order("reg_date", desc=True) \
+            .order("date_round", desc=True) \
+            .limit(1) \
+            .execute()
+        latest = int(response.data[0]["date_round"]) + 1
+        return jsonify({"round": latest})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT") or 5000)
     app.run(host='0.0.0.0', port=port)
