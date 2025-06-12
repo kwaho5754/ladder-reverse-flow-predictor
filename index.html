@@ -4,37 +4,65 @@
   <meta charset="UTF-8" />
   <title>사다리 블럭 예측 결과</title>
   <style>
-    body { font-family: "Noto Sans KR", sans-serif; background: #f4f7ff; padding: 2rem; }
-    h1 { font-size: 1.8rem; text-align: center; margin-bottom: 2rem; position: relative; }
+    body {
+      font-family: "Noto Sans KR", sans-serif;
+      background: #f4f7ff;
+      padding: 2rem;
+    }
+    h1 {
+      font-size: 1.8rem;
+      text-align: center;
+      margin-bottom: 2rem;
+      position: relative;
+    }
     #round-info {
       position: absolute;
-      top: 0; right: 1rem;
-      font-size: 1rem; color: #444;
-      background: rgba(255,255,255,0.8); padding: 0.3rem 0.8rem;
+      top: 50%;
+      right: 1rem;
+      transform: translateY(-50%);
+      font-size: 1rem;
+      color: #444;
+      background: rgba(255,255,255,0.8);
+      padding: 0.3rem 0.8rem;
       border-radius: 0.6rem;
       box-shadow: 0 0 4px rgba(0,0,0,0.1);
+      white-space: nowrap;
     }
     .summary-box {
-      max-width: 1000px; margin: 0 auto 2rem auto;
-      background: #fff; border-radius: 10px;
-      box-shadow: 0 0 6px rgba(0,0,0,0.1); padding: 1rem;
+      max-width: 1000px;
+      margin: 0 auto 2rem auto;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 0 6px rgba(0,0,0,0.1);
+      padding: 1rem;
     }
-    .summary-box h2 { text-align: center; margin-bottom: 1rem; }
-    .summary-row { display: flex; gap: 2rem; flex-wrap: wrap; justify-content: space-around; }
-    .summary-half { flex: 1; min-width: 480px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 0.6rem; border-bottom: 1px solid #ddd; text-align: left; font-size: 0.95rem; }
-    th { background: #eef2ff; }
-    .section { margin-bottom: 3rem; }
-    .card-row { display: flex; gap: 1rem; flex-wrap: wrap; }
-    .card {
-      background: #fff; padding: 1rem; border-radius: 0.8rem;
-      box-shadow: 0 0 8px rgba(0,0,0,0.1); width: 280px;
+    .summary-box h2 {
+      text-align: center;
+      margin-bottom: 1rem;
     }
-    .card h3 { font-size: 1rem; margin-bottom: 0.5rem; }
-    .card h4 { font-size: 0.95rem; margin-top: 0.8rem; margin-bottom: 0.4rem; }
-    .card ol { padding-left: 1.2rem; }
-    .card li { font-size: 0.9rem; margin-bottom: 0.4rem; }
+    .summary-row {
+      display: flex;
+      gap: 2rem;
+      flex-wrap: wrap;
+      justify-content: space-around;
+    }
+    .summary-half {
+      flex: 1;
+      min-width: 480px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 0.6rem;
+      border-bottom: 1px solid #ddd;
+      text-align: left;
+      font-size: 0.95rem;
+    }
+    th {
+      background: #eef2ff;
+    }
   </style>
 </head>
 <body>
@@ -43,16 +71,10 @@
     <span id="round-info">예측 회차: 불러오는 중...</span>
   </h1>
 
-  <div id="summary-1"></div>
-  <div id="summary-2"></div>
-  <div id="summary-3"></div>
-  <div id="summary-4"></div>
-  <div id="summary-5"></div>
-  <div id="summary-6"></div>
   <div id="results"></div>
 
   <script>
-    // 예측 회차 표시: 최신 순번 + 1
+    // 예측 회차 표시
     async function loadLatestRound() {
       try {
         const res = await fetch('/latest_round');
@@ -63,57 +85,49 @@
       }
     }
 
-    const modes = [
-      "3block_orig", "3block_flip_full", "3block_flip_start", "3block_flip_odd_even",
-      "4block_orig", "4block_flip_full", "4block_flip_start", "4block_flip_odd_even"
-    ];
-
-    const limits = [1, 2, 3, 4, 5, 6];
-
-    const transformLabel = {
-      "orig": "원본", "flip_start": "시작점 반전",
-      "flip_odd_even": "홀짝 반전", "flip_full": "완전 대칭"
-    };
-
-    function getModeKey(mode) {
-      return mode.split("_")[0];
-    }
-
-    function getTransformKey(mode) {
-      return mode.split("_").slice(1).join("_");
-    }
-
+    // 예측 결과 로딩
     async function loadResults() {
       const resultContainer = document.getElementById("results");
       resultContainer.innerHTML = "";
 
+      const modes = [
+        "3block_orig", "3block_flip_full", "3block_flip_start", "3block_flip_odd_even",
+        "4block_orig", "4block_flip_full", "4block_flip_start", "4block_flip_odd_even"
+      ];
+
+      const limits = [1, 2, 3, 4, 5, 6];
+
       const topTrack = {}, bottomTrack = {}, topRounds = {}, bottomRounds = {};
+
+      const fetchPromises = [];
 
       for (const limit of limits) {
         for (const mode of modes) {
-          try {
-            const res = await fetch(`/predict?mode=${mode}&limit=${limit}`);
-            const data = await res.json();
+          fetchPromises.push(
+            fetch(`/predict?mode=${mode}&limit=${limit}`)
+              .then(res => res.json())
+              .then(data => {
+                const topItem = data["상단값들"][limit - 1];
+                const bottomItem = data["하단값들"][limit - 1];
 
-            const topItem = data["상단값들"][limit - 1];
-            const bottomItem = data["하단값들"][limit - 1];
+                if (topItem?.값) {
+                  if (!topTrack[topItem.값]) topTrack[topItem.값] = [];
+                  topTrack[topItem.값].push({ 순번: topItem.순번 });
+                  topRounds[topItem.값] = (topRounds[topItem.값] || 0) + 1;
+                }
 
-            if (topItem?.값) {
-              if (!topTrack[topItem.값]) topTrack[topItem.값] = [];
-              topTrack[topItem.값].push({ 순번: topItem.순번 });
-              topRounds[topItem.값] = (topRounds[topItem.값] || 0) + 1;
-            }
-
-            if (bottomItem?.값) {
-              if (!bottomTrack[bottomItem.값]) bottomTrack[bottomItem.값] = [];
-              bottomTrack[bottomItem.값].push({ 순번: bottomItem.순번 });
-              bottomRounds[bottomItem.값] = (bottomRounds[bottomItem.값] || 0) + 1;
-            }
-          } catch (e) {
-            console.error("예측 실패", mode, limit, e);
-          }
+                if (bottomItem?.값) {
+                  if (!bottomTrack[bottomItem.값]) bottomTrack[bottomItem.값] = [];
+                  bottomTrack[bottomItem.값].push({ 순번: bottomItem.순번 });
+                  bottomRounds[bottomItem.값] = (bottomRounds[bottomItem.값] || 0) + 1;
+                }
+              })
+              .catch(e => console.error("예측 실패", mode, limit, e))
+          );
         }
       }
+
+      await Promise.all(fetchPromises); // ✅ 동시 요청으로 로딩 속도 개선
 
       const container = document.createElement("div");
       container.className = "summary-box";
@@ -136,19 +150,20 @@
     }
 
     function renderTable(trackMap, countMap) {
-      const rows = Object.entries(trackMap).map(([val, arr]) => {
-        const 순번들 = arr.map(obj => `순번 ${obj.순번}`).join("<br>");
-        return `<tr><td>${val}</td><td>${countMap[val]}</td><td>${순번들}</td></tr>`;
-      }).join("");
-
       return `
         <table>
           <thead><tr><th>값</th><th>출현횟수</th><th>순번 상세</th></tr></thead>
-          <tbody>${rows}</tbody>
+          <tbody>
+            ${Object.entries(trackMap).map(([val, arr]) => {
+              const 순번들 = arr.map(obj => `순번 ${obj.순번}`).join("<br>");
+              return `<tr><td>${val}</td><td>${countMap[val]}</td><td>${순번들}</td></tr>`;
+            }).join("")}
+          </tbody>
         </table>
       `;
     }
 
+    // 페이지 로드시 실행
     loadLatestRound();
     loadResults();
   </script>
