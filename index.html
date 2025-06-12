@@ -13,20 +13,11 @@
       font-size: 1.8rem;
       text-align: center;
       margin-bottom: 2rem;
-      position: relative;
     }
     #round-info {
-      position: absolute;
-      top: 50%;
-      right: 1rem;
-      transform: translateY(-50%);
       font-size: 1rem;
-      color: #444;
-      background: rgba(255,255,255,0.8);
-      padding: 0.3rem 0.8rem;
-      border-radius: 0.6rem;
-      box-shadow: 0 0 4px rgba(0,0,0,0.1);
-      white-space: nowrap;
+      color: #555;
+      margin-left: 0.5rem;
     }
     .summary-box {
       max-width: 1000px;
@@ -68,24 +59,24 @@
 <body>
   <h1>
     🔮 사다리 블럭 예측 결과
-    <span id="round-info">예측 회차: 불러오는 중...</span>
+    <span id="round-info">(예측 회차: 불러오는 중...)</span>
   </h1>
 
   <div id="results"></div>
 
   <script>
-    // 예측 회차 표시
+    // 예측 회차 불러오기
     async function loadLatestRound() {
       try {
         const res = await fetch('/latest_round');
         const data = await res.json();
-        document.getElementById("round-info").textContent = `예측 회차: ${data.round}회`;
+        document.getElementById("round-info").textContent = `(예측 회차: ${data.round}회)`;
       } catch (e) {
         console.error("예측 회차 불러오기 실패", e);
       }
     }
 
-    // 예측 결과 로딩
+    // 예측 결과 불러오기
     async function loadResults() {
       const resultContainer = document.getElementById("results");
       resultContainer.innerHTML = "";
@@ -96,9 +87,7 @@
       ];
 
       const limits = [1, 2, 3, 4, 5, 6];
-
       const topTrack = {}, bottomTrack = {}, topRounds = {}, bottomRounds = {};
-
       const fetchPromises = [];
 
       for (const limit of limits) {
@@ -127,7 +116,7 @@
         }
       }
 
-      await Promise.all(fetchPromises); // ✅ 동시 요청으로 로딩 속도 개선
+      await Promise.all(fetchPromises);
 
       const container = document.createElement("div");
       container.className = "summary-box";
@@ -163,7 +152,6 @@
       `;
     }
 
-    // 페이지 로드시 실행
     loadLatestRound();
     loadResults();
   </script>
