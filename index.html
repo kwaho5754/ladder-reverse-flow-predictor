@@ -88,6 +88,13 @@
       const topTrack = {}, bottomTrack = {}, topRounds = {}, bottomRounds = {};
       const fetchPromises = [];
 
+      const transformLabel = {
+        "orig": "원본",
+        "flip_full": "대칭",
+        "flip_start": "시작점",
+        "flip_odd_even": "홀짝"
+      };
+
       for (const limit of limits) {
         for (const mode of modes) {
           fetchPromises.push(
@@ -95,18 +102,21 @@
               .then(res => res.json())
               .then(data => {
                 const blockType = mode.startsWith("3block") ? "3BL" : "4BL";
+                const transformKey = Object.keys(transformLabel).find(k => mode.includes(k));
+                const transformName = transformLabel[transformKey] || "원본";
+
                 const topItem = data["상단값들"][limit - 1];
                 const bottomItem = data["하단값들"][limit - 1];
 
                 if (topItem?.값) {
                   if (!topTrack[topItem.값]) topTrack[topItem.값] = [];
-                  topTrack[topItem.값].push({ 순번: topItem.순번, 블럭: blockType });
+                  topTrack[topItem.값].push({ 순번: topItem.순번, 블럭: blockType, 방식: transformName });
                   topRounds[topItem.값] = (topRounds[topItem.값] || 0) + 1;
                 }
 
                 if (bottomItem?.값) {
                   if (!bottomTrack[bottomItem.값]) bottomTrack[bottomItem.값] = [];
-                  bottomTrack[bottomItem.값].push({ 순번: bottomItem.순번, 블럭: blockType });
+                  bottomTrack[bottomItem.값].push({ 순번: bottomItem.순번, 블럭: blockType, 방식: transformName });
                   bottomRounds[bottomItem.값] = (bottomRounds[bottomItem.값] || 0) + 1;
                 }
               })
@@ -143,7 +153,9 @@
           <thead><tr><th>값</th><th>출현횟수</th><th>순번 상세</th></tr></thead>
           <tbody>
             ${Object.entries(trackMap).map(([val, arr]) => {
-              const 순번들 = arr.map(obj => `순번 ${obj.순번} (${obj.블럭})`).join("<br>");
+              const 순번들 = arr.map(obj =>
+                `순번 ${obj.순번} (${obj.블럭}, ${obj.방식})`
+              ).join("<br>");
               return `<tr><td>${val}</td><td>${countMap[val]}</td><td>${순번들}</td></tr>`;
             }).join("")}
           </tbody>
