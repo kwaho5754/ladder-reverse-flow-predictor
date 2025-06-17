@@ -63,6 +63,7 @@
   </h1>
 
   <div id="results"></div>
+  <div id="frequency-summary"></div>
 
   <script>
     async function loadLatestRound() {
@@ -77,14 +78,16 @@
 
     async function loadResults() {
       const resultContainer = document.getElementById("results");
+      const freqContainer = document.getElementById("frequency-summary");
       resultContainer.innerHTML = "";
+      freqContainer.innerHTML = "";
 
       const modes = [
         "3block_orig", "3block_flip_full", "3block_flip_start", "3block_flip_odd_even",
         "4block_orig", "4block_flip_full", "4block_flip_start", "4block_flip_odd_even"
       ];
 
-      const limits = [1, 2, 3, 4, 5, 6];
+      const limits = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
       const topTrack = {}, bottomTrack = {}, topRounds = {}, bottomRounds = {};
       const fetchPromises = [];
 
@@ -145,6 +148,19 @@
       row.appendChild(bottomBox);
       container.appendChild(row);
       resultContainer.appendChild(container);
+
+      // 📌 추가: 3BL/4BL 상하단 빈도 요약 출력
+      const freqBox = document.createElement("div");
+      freqBox.className = "summary-box";
+
+      freqBox.innerHTML = `
+        <h2>📌 블럭 종류별 상하단 예측값 빈도 요약</h2>
+        ${renderFrequencyTable("3BL", "상단", topTrack, topRounds)}
+        ${renderFrequencyTable("4BL", "상단", topTrack, topRounds)}
+        ${renderFrequencyTable("3BL", "하단", bottomTrack, bottomRounds)}
+        ${renderFrequencyTable("4BL", "하단", bottomTrack, bottomRounds)}
+      `;
+      freqContainer.appendChild(freqBox);
     }
 
     function renderTable(trackMap, countMap) {
@@ -166,6 +182,29 @@
 
               return `<tr><td>${val}</td><td>${countMap[val]}</td><td>${순번들}</td></tr>`;
             }).join("")}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function renderFrequencyTable(blockType, position, trackMap, countMap) {
+      const filtered = Object.entries(trackMap).filter(([_, arr]) =>
+        arr.some(item => item.블럭 === blockType)
+      );
+
+      const counted = filtered.map(([val, arr]) => {
+        const count = arr.filter(item => item.블럭 === blockType).length;
+        return { val, count };
+      }).sort((a, b) => b.count - a.count);
+
+      return `
+        <h3>📌 ${blockType} ${position}값 빈도</h3>
+        <table>
+          <thead><tr><th>값</th><th>출현횟수</th></tr></thead>
+          <tbody>
+            ${counted.map(row =>
+              `<tr><td>${row.val}</td><td>${row.count}</td></tr>`
+            ).join("")}
           </tbody>
         </table>
       `;
