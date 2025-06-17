@@ -153,9 +153,17 @@
           <thead><tr><th>값</th><th>출현횟수</th><th>순번 상세</th></tr></thead>
           <tbody>
             ${Object.entries(trackMap).map(([val, arr]) => {
-              const 순번들 = arr.map(obj =>
+              const sortedArr = arr.slice().sort((a, b) => {
+                const aBL = a.블럭.startsWith("3") ? 0 : 1;
+                const bBL = b.블럭.startsWith("3") ? 0 : 1;
+                if (aBL !== bBL) return aBL - bBL;
+                return parseInt(a.순번) - parseInt(b.순번);
+              });
+
+              const 순번들 = sortedArr.map(obj =>
                 `순번 ${obj.순번} (${obj.블럭}, ${obj.방식})`
               ).join("<br>");
+
               return `<tr><td>${val}</td><td>${countMap[val]}</td><td>${순번들}</td></tr>`;
             }).join("")}
           </tbody>
